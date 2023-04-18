@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="co_main">#15b6b9</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="gray_bg">#EFEFEF</color>
+    <color name="gary_fg" >#444444</color>
+    <color name="color_trans">#00000000</color>
+    <color name="fore">#000</color>
+    <color name="bg">#FFFFFF</color>
+</resources>

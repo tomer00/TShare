@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">TShare</string>
+    <string name="des">des</string>
+    <string name="send">SEND</string>
+    <string name="_0">0</string>
+    <string name="finish">finish</string>
+    <string name="delete">Delete</string>
+    <string name="scan_qr_code">Scan QR Code</string>
+    <string name="not_connected">Seems 📵 You are not Connected!!</string>
+    <string name="your_name">Your Name</string>
+    <string name="save">Save</string>
+</resources>
