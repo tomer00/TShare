@@ -7,7 +7,7 @@ import java.io.InputStream
 
 
 //Handle single File Receiving Completely
-class RecHandler(private val ins: InputStream, outFile: File, private var lis: RecLis, private var remainSize: Long) : Runnable {
+class RecHandler(private val ins: InputStream, outFile: File, private var lis: (Int) -> Unit, private var remainSize: Long) : Runnable {
 
     private lateinit var out: FileOutputStream
 
@@ -19,9 +19,8 @@ class RecHandler(private val ins: InputStream, outFile: File, private var lis: R
             out = if (outFile.exists())
                 FileOutputStream(outFile, true)
             else FileOutputStream(outFile)
-
             this.run()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
         }
 
     }
@@ -33,15 +32,11 @@ class RecHandler(private val ins: InputStream, outFile: File, private var lis: R
                 else ins.read(data, 0, Utils.BUFF_SIZE)
                 remainSize -= r
                 out.write(data, 0, r)
-                lis.onUpdate(r)
+                lis.invoke(r)
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
         }
         out.flush()
         out.close()
-    }
-
-    interface RecLis {
-        fun onUpdate(long: Int)
     }
 }

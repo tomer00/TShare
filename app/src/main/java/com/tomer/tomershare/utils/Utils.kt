@@ -1,17 +1,18 @@
 package com.tomer.tomershare.utils
 
+import android.net.Uri
 import android.os.Build
 import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.animation.Animation
 import android.view.animation.LinearInterpolator
 import android.view.animation.RotateAnimation
-//import com.tomer.tomershare.modal.AppModal
-import java.io.File
-import java.net.Socket
+import com.tomer.tomershare.modal.AppModal
 import java.net.URLDecoder
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
+import java.util.LinkedList
+import java.util.Queue
 import kotlin.math.pow
 
 class Utils {
@@ -22,6 +23,8 @@ class Utils {
         const val SERVER_PORT = 8012
         var ADDRESS = "192.168.43.1"
 
+        val sendQueue: Queue<AppModal> = LinkedList()
+
         fun Long.bytesFromLong(): ByteArray {
             return ByteBuffer.allocate(8).putLong(this).array()
         }
@@ -29,13 +32,6 @@ class Utils {
         fun ByteArray.longFromBytearray(): Long {
             return ByteBuffer.wrap(this).long
         }
-
-        fun Socket.sendString(string: String){
-            val strata: ByteArray = string.toByteArray(StandardCharsets.UTF_8)
-            this.getOutputStream().write(strata.size.toLong().bytesFromLong())
-            this.getOutputStream().write(strata)
-        }
-
 
         fun Int.px(den:Float):Int = (this*den).toInt()
 
@@ -53,9 +49,16 @@ class Utils {
             if (Build.VERSION.SDK_INT>=Build.VERSION_CODES.R) this.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK,HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING)
         }
 
-//        val files = ArrayList<AppModal>(1)
-
         fun String.decode(): String = URLDecoder.decode(this, StandardCharsets.UTF_8.toString())
+
+        fun Uri.fileName():String {
+            var res = this.path.toString().decode()
+            val cut = res.lastIndexOf("/")
+            if (cut != -1) {
+                res = res.substring(cut + 1)
+            }
+            return res
+        }
 
         fun humanReadableSize(apkSize: Long): String {
             return  when {
@@ -65,7 +68,5 @@ class Utils {
                 else -> String.format("%1$.2f GB", apkSize / 1024.0.pow(3.0))
             }
         }
-
-        fun allFiles(f: File): Array<File> = f.listFiles() as Array<File>
     }
 }

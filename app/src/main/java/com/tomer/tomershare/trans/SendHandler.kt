@@ -8,7 +8,7 @@ import java.io.IOException
 import java.io.OutputStream
 
 //Handle single File sending Completely
-class SendHandler(private val out: OutputStream, private val currFile: File, private val skipSize: Long, private val lis: SendLis) : Runnable {
+class SendHandler(private val out: OutputStream, private val currFile: File, private val skipSize: Long, private val lis: (Int) -> Unit) : Runnable {
 
     private lateinit var fis: FileInputStream
 
@@ -19,7 +19,7 @@ class SendHandler(private val out: OutputStream, private val currFile: File, pri
             fis = FileInputStream(currFile)
             fis.skip(skipSize)
             this.run()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
         }
     }
 
@@ -30,18 +30,14 @@ class SendHandler(private val out: OutputStream, private val currFile: File, pri
                 val r: Int = fis.read(data)
                 if (r == -1) break
                 out.write(data, 0, r)
-                lis.onUpdate(r)
+                lis.invoke(r)
             }
             fis.close()
         } catch (e: Exception) {
             try {
                 fis.close()
-            } catch (e: IOException) {
+            } catch (_: IOException) {
             }
         }
-    }
-
-    interface SendLis {
-        fun onUpdate(long: Int)
     }
 }

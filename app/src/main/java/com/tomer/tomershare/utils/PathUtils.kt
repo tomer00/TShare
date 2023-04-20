@@ -60,14 +60,5 @@ class PathUtils {
             }
             return if (path == null || path.isEmpty()) this.path else path
         }
-
-        fun fileName(uri: Uri): String {
-            var res = uri.path
-            val cut = res!!.lastIndexOf("/")
-            if (cut != -1) {
-                res = res.substring(cut + 1)
-            }
-            return res
-        }
     }
 }
