@@ -6,19 +6,28 @@ import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.SystemClock
 import android.util.Log
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.tomer.tomershare.R
+import com.tomer.tomershare.adap.AdaptMsg
 import com.tomer.tomershare.databinding.ActivitySendingBinding
 import com.tomer.tomershare.modal.AppModal
+import com.tomer.tomershare.modal.TransferModal
+import com.tomer.tomershare.trans.SendHandler
 import com.tomer.tomershare.utils.PathUtils.Companion.getFilePath
 import com.tomer.tomershare.utils.PathUtils.Companion.getImagePath
 import com.tomer.tomershare.utils.PathUtils.Companion.getVideoPath
+import com.tomer.tomershare.utils.QRProvider
+import com.tomer.tomershare.utils.Repo
 import com.tomer.tomershare.utils.Utils
 import com.tomer.tomershare.utils.Utils.Companion.bytesFromLong
 import com.tomer.tomershare.utils.Utils.Companion.fileName
+import com.tomer.tomershare.utils.Utils.Companion.longFromBytearray
+import com.tomer.tomershare.utils.Utils.Companion.rotate
 import java.io.File
 import java.net.DatagramSocket
 import java.net.Inet4Address
@@ -28,13 +37,15 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.nio.charset.StandardCharsets
 import java.util.Enumeration
+import java.util.regex.Pattern
 import kotlin.concurrent.thread
 
 class ActivitySending : AppCompatActivity() {
 
     //region GLOBALS---->>>
     private val b by lazy { ActivitySendingBinding.inflate(layoutInflater) }
-
+    private val adapSend by lazy { AdaptMsg(this, this::closeCurrFile) }
+    private val list = mutableListOf<TransferModal>()
 
     private var soc: Socket? = null
     private var serverSocket: ServerSocket? = null
@@ -42,12 +53,18 @@ class ActivitySending : AppCompatActivity() {
     private var time: Long = 0
     private var timeCurrent: Long = 0
 
+    @Volatile
+    private var index = -1
+    private val bytesLong = ByteArray(8)
 
     @Volatile
-    private var totalBytes = 0L
+    private var currTotalBytes = 0L
 
     @Volatile
     private var currentBytes = 0L
+
+    @Volatile
+    private var finalTotalBytes = 0L
 
     @Volatile
     private var canSend = true
@@ -56,12 +73,17 @@ class ActivitySending : AppCompatActivity() {
     @Volatile
     private var transferGoing = false
 
+
+    private var avatar = "1"
+    private var phoneName = "Android"
     //endregion GLOBALS---->>>
 
-    fun Socket.sendString(string: String) {
+    @Throws(Exception::class)
+    private fun Socket.sendString(string: String) {
         val strata: ByteArray = string.toByteArray(StandardCharsets.UTF_8)
         this.getOutputStream().write(strata.size.toLong().bytesFromLong())
         this.getOutputStream().write(strata)
+        this.getOutputStream().flush()
     }
 
 
@@ -70,7 +92,6 @@ class ActivitySending : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(b.root)
-
 
         //region HANDLE SELECTED URIS--->>
         val action = intent.action
@@ -104,19 +125,24 @@ class ActivitySending : AppCompatActivity() {
             val ip = getIp()
             if (ip != "NOT") {
                 b.root.post {
-//                    b.tvIpShow.text = ip
+                    b.tvIpShow.text = ip
+                    b.imgQRRota.rotate()
+                    b.imgAvatarReceiver.rotate()
                 }
             }
             b.root.post {
-//                b.imgQR.setImageBitmap(QRProvider.getQRBMP("${pref.getString("name", "Share")}::$ip::${pref.getString("icon", "1")}"))
+                b.imgQR.setImageBitmap(
+                    QRProvider.getQRBMP(
+                        "${pref.getString("name", "Share")}::$ip::${pref.getString("icon", "1")}",
+                        ContextCompat.getColor(this, R.color.co_main)
+                    )
+                )
             }
             try {
+                Log.d("TAG--", "onCreate: LINNG....131")
                 soc = serverSocket!!.accept()
                 soc!!.sendBufferSize = Utils.OUT_BUFF
-                b.root.post {
-//                    b.imgQRRota.clearAnimation()
-//                    b.layQr.visibility = View.GONE
-                }
+                Log.d("TAG--", "onCreate: Connecrtes...")
                 onOpen()
             } catch (_: Exception) {
             }
@@ -136,6 +162,8 @@ class ActivitySending : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         stopped = true
+        Utils.sendQueue.clear()
+        closeSockets()
         val parent = File(cacheDir, "temps").listFiles()
         parent?.forEach { f ->
             f.delete()
@@ -144,19 +172,79 @@ class ActivitySending : AppCompatActivity() {
 
     // Init ui from barcode to sending and adding recyclerview Items..
     private fun intiUI() {
-
+        Utils.sendQueue.forEach { mod ->
+            list.add(TransferModal(mod.name))
+        }
+        b.root.post {
+            b.imgQRRota.clearAnimation()
+            b.layQr.visibility = View.GONE
+            b.tRv.adapter = adapSend
+            adapSend.submitList(list)
+            b.imgAvatarReceiver.apply {
+                clearAnimation()
+                rotation = 0f
+                setImageDrawable(ContextCompat.getDrawable(this@ActivitySending,Repo.getMid(avatar)))
+            }
+            b.tvSendingName.text = "Sending to $phoneName's Phone"
+        }
     }
+
+    private fun finishUI() {
+        runOnUiThread {
+            Log.d("TAG--", "onSendingDone: 183...")
+        }
+    }
+
 
     //endregion ACTIVITY LIFECYCLES---->>>
 
 
-    //region DIALOGS---->>
-
-
-    //endregion DIALOGS---->>
-
-
     //region SENDING FILES----->>>
+
+    private fun readPhoneName() {
+        soc!!.getInputStream().read(bytesLong, 0, 8)
+        val size: Long = bytesLong.longFromBytearray()
+        val nameBytes = ByteArray(size.toInt())
+        soc!!.getInputStream().read(nameBytes, 0, size.toInt())
+        // name of file currently receiving....... // Phone NAme::id{3}
+        val phoneNameAndAvatar = String(nameBytes, StandardCharsets.UTF_8)
+
+        avatar = phoneNameAndAvatar[size.toInt()].toString()
+        phoneName = phoneNameAndAvatar.substring(0, size.toInt() - 1)
+
+        Log.d("TAG--", "readPhoneName: 208... $avatar $phoneName")
+    }
+
+    private fun closeCurrFile() {
+        if (!transferGoing) return
+        Log.d("TAG--", "closeCurrFile: Callde on line 193")
+        soc!!.close()
+    }
+
+    private fun reListen() {
+        Log.d("TAG--", "reListen: 200...")
+        try {
+            if (soc != null) soc!!.close()
+            soc = serverSocket!!.accept()
+            runOnUiThread {
+                thread {
+                    sendData()
+                }
+            }
+
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun onSendingDone() {
+        try {
+            adapSend.currentList[index].isTrans = false
+            adapSend.notifyItemChanged(index)
+        } catch (_: Exception) {
+        }
+        soc!!.sendString("FINISH")
+        finishUI()
+    }
 
 
     private fun onOpen() {
@@ -164,9 +252,11 @@ class ActivitySending : AppCompatActivity() {
             try {
                 if (canSend) {
                     time = SystemClock.elapsedRealtime()
-                    sendStart()
+//                    readPhoneName()
                     intiUI()
+                    sendData()
                     canSend = false
+                    break
                 } else SystemClock.sleep(20)
             } catch (_: Exception) {
 
@@ -174,12 +264,68 @@ class ActivitySending : AppCompatActivity() {
         }
     }
 
-    private fun sendStart() {
+
+    // this is always called on a separate thread
+    @Throws(Exception::class)
+    private fun sendData() {
+
         while (Utils.sendQueue.isNotEmpty()) {
-            Log.d("TAG--", "sendStart: ${Utils.sendQueue.poll()?.file?.length()}")
+            val appModal = Utils.sendQueue.poll()!!
+            runOnUiThread {
+                index++
+                adapSend.currentList[index].isTrans = true
+                adapSend.notifyItemChanged(index)
+                Log.d("TAG--", "sendData: $index updated")
+                try {
+                    adapSend.currentList[index - 1].isTrans = false
+                    adapSend.notifyItemChanged(index - 1)
+                } catch (_: Exception) {
+                }
+                b.progTop.updateProg(0f)
+            }
+
+            // sending the file name length and name bytes itself...
+            try {
+                soc!!.sendString(appModal.name)
+            } catch (_: Exception) {
+                closeSockets()
+                finishUI()
+            }
+
+            //getting the skip cursor from that file as long....
+            soc!!.getInputStream().read(bytesLong, 0, 8)
+            val cursor: Long = bytesLong.longFromBytearray()
+
+            currTotalBytes = appModal.file.length()
+            currentBytes += cursor
+
+            transferGoing = true
+            SendHandler(soc!!, appModal.file, cursor) { long ->
+                finalTotalBytes += long
+                currentBytes += long
+                try {
+                    val p = ((currentBytes * 100) / currTotalBytes).toFloat()
+                    b.progTop.post { b.progTop.updateProg(p / 100) }
+                } catch (_: Exception) {
+                }
+            }
+            transferGoing = false
+            Log.d("TAG--", "sendData: 272..line p aagya ${soc!!.isClosed}")
+            if (soc!!.isClosed) {
+                reListen()
+                return
+            }
         }
+        onSendingDone()
     }
 
+    private fun closeSockets() {
+        try {
+            if (soc != null) soc!!.close()
+            if (serverSocket != null) serverSocket!!.close()
+        } catch (_: Exception) {
+        }
+    }
     //endregion SENDING FILES----->>>
 
 
@@ -208,7 +354,7 @@ class ActivitySending : AppCompatActivity() {
                     val add = into.nextElement()
                     if (!add.isLoopbackAddress && add is Inet4Address) {
                         str = add.hostAddress?.toString() ?: "NOT"
-                        if (!str.startsWith("192."))
+                        if (!str.startsWith("192.168."))
                             str = "NOT"
                         return str
                     }
@@ -226,6 +372,15 @@ class ActivitySending : AppCompatActivity() {
 
 
     private fun handleFile(uri: Uri) {
+
+        //for Xiaomi Phone's File Manager....
+        if (uri.path!!.contains("/external_files/")) {
+            val sts: Array<String> = Pattern.compile("/external_files/").split(uri.path!!)
+            val f = File(Environment.getExternalStorageDirectory(), sts[1])
+            Utils.sendQueue.offer(AppModal(f.name, "0", f, ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+            return
+        }
+
         when (intent.type.toString()) {
             "video/*" -> {
                 val path = uri.getVideoPath(applicationContext).toString()

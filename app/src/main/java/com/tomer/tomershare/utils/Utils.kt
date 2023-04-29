@@ -8,6 +8,7 @@ import android.view.animation.Animation
 import android.view.animation.LinearInterpolator
 import android.view.animation.RotateAnimation
 import com.tomer.tomershare.modal.AppModal
+import java.io.File
 import java.net.URLDecoder
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
@@ -49,7 +50,9 @@ class Utils {
             if (Build.VERSION.SDK_INT>=Build.VERSION_CODES.R) this.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK,HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING)
         }
 
-        fun String.decode(): String = URLDecoder.decode(this, StandardCharsets.UTF_8.toString())
+        private fun String.decode(): String = URLDecoder.decode(this, StandardCharsets.UTF_8.toString())
+
+        fun allFiles(f: File): Array<File> = f.listFiles() as Array<File>
 
         fun Uri.fileName():String {
             var res = this.path.toString().decode()
