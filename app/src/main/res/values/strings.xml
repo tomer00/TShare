@@ -9,4 +9,5 @@
     <string name="not_connected">Seems 📵 You are not Connected!!</string>
     <string name="your_name">Your Name</string>
     <string name="save">Save</string>
+    <string name="waiting">Waiting for receiver…</string>
 </resources>

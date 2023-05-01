@@ -35,7 +35,7 @@
         android:layout_marginHorizontal="12dp"
         android:fontFamily="@font/quantico_bold_italic"
         android:gravity="center_vertical|start"
-        android:textColor="@color/co_main"
+        android:textColor="@color/fore"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/img" />
 

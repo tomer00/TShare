@@ -154,16 +154,18 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
 
             btRec.setOnClickListener {
                 it.haptic()
-                val i = Intent(this@MainActivity, ActivityReceiving::class.java)
-                i.putExtra("rec", "rec")
-                startActivity(i)
-                overridePendingTransition(0, R.anim.exit_d)
+                startActivity(Intent(this@MainActivity, ActivityReceiving::class.java))
+                overridePendingTransition(
+                    R.anim.enter_acti, R.anim.exit_d
+                )
             }
 
             btSend.setOnClickListener {
                 if (Utils.sendQueue.isNotEmpty()) {
                     startActivity(Intent(this@MainActivity, ActivitySending::class.java))
-                    overridePendingTransition(0, R.anim.exit_d)
+                    overridePendingTransition(
+                        R.anim.enter_acti, R.anim.exit_d
+                    )
                     if (isGal) {
                         galPos.forEach {
                             adapGal.l[it].visi = false
@@ -176,12 +178,11 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
                             adapApp.notifyItemChanged(it)
                         }
                     }
-                    val g:Byte = 8
-                    for (i in 0 until adapFiles.currentList.size)
-                        if (adapFiles.currentList[i].visi!=g) {
-                            adapFiles.currentList[i].visi = 8
-                            adapFiles.notifyItemChanged(i)
-                        }
+                    val g: Byte = 8
+                    for (i in 0 until adapFiles.currentList.size) if (adapFiles.currentList[i].visi != g) {
+                        adapFiles.currentList[i].visi = 8
+                        adapFiles.notifyItemChanged(i)
+                    }
                 } else {
                     Toast.makeText(this@MainActivity, "Select at least 1 file", Toast.LENGTH_SHORT).show()
                 }
@@ -255,9 +256,9 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
             backDir()
             return
         }
-        val f: File = try{
+        val f: File = try {
             adapFiles.currentList[position].file
-        }catch (e:Exception){
+        } catch (e: Exception) {
             return
         }
         if (f.isDirectory) {
@@ -291,15 +292,37 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
         }
     }
 
-    override fun onFileLongClick(position: Int) {
+    override fun onFileLongClick(position: Int, indic: View, thumb: ImageView) {
         delFile = adapFiles.currentList[position].file
-        if (delFile.isDirectory) return
+        if (delFile.isDirectory) {
+            if (indic.visibility == View.GONE) {
+                Utils.sendQueue.offer(AppModal(delFile.name, "0", delFile, drDef!!))
+                changeFile(position, 0)
+                indic.visibility = View.VISIBLE
+                playAnimationAddingFile(thumb)
+            } else {
+                val i: MutableIterator<AppModal> = Utils.sendQueue.iterator()
+                var find: AppModal
+                while (i.hasNext()) {
+                    find = i.next()
+                    if (delFile.absolutePath == find.file.absolutePath) {
+                        i.remove()
+                        changeFile(position, 8)
+                        indic.visibility = View.GONE
+                        break
+                    }
+                }
+            }
+            b.tvItems.text = Utils.sendQueue.size.toString()
+            return
+        }
         diaDelete.show()
         "Really want to delete\n${delFile.name} ??".also { tvDlName.text = it }
     }
 
 //endregion RECYCLER VIEW CLICKING
 
+    @Deprecated("Updated in Future")
     override fun onBackPressed() {
         if (mode == 1) {
             if (stack.empty()) {
@@ -329,8 +352,7 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
         fModals.add(FileModal("..", Environment.getExternalStorageDirectory(), ContextCompat.getDrawable(this, R.drawable.ic_folder)!!))
         for (fl in files) {
             if (fl.isDirectory) {
-                if (!fl.name.startsWith("."))
-                    fModals.add(FileModal(fl.name, fl, ContextCompat.getDrawable(this, R.drawable.ic_folder)!!))
+                if (!fl.name.startsWith(".")) fModals.add(FileModal(fl.name, fl, ContextCompat.getDrawable(this, R.drawable.ic_folder)!!))
             } else filesd.add(FileModal(fl.name, fl, listDrawable[mapFile[(fl.extension).lowercase()] ?: 4]))
         }
         fModals.sortBy { it.name }
@@ -379,6 +401,7 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
 
     private fun playAnimationAddingFile(thumb: ImageView) {
         b.imgTransfer.animation?.cancel()
+        b.imgTransfer.clearAnimation()
         b.imgTransfer.setImageDrawable(thumb.drawable)
         val arr = IntArray(2)
         thumb.getLocationOnScreen(arr)

@@ -48,8 +48,8 @@ class Splash : AppCompatActivity() {
             btRec.setOnClickListener {
                 btRec.haptic()
                 startActivity(Intent(this@Splash, ActivityReceiving::class.java))
-                overridePendingTransition(0, R.anim.exit_rec)
-                root.postDelayed({ finish() }, 1000)
+                overridePendingTransition(R.anim.enter_acti, R.anim.exit_rec)
+                root.postDelayed({ finish() }, 800)
             }
             btSend.setOnClickListener {
                 btSend.haptic()
@@ -61,7 +61,7 @@ class Splash : AppCompatActivity() {
                     duration = 400
                     start()
                 }
-                root.postDelayed({ finish() }, 1000)
+                root.postDelayed({ finish() }, 800)
             }
             aniM(btRec, 400)
             aniM(btSend, 200)

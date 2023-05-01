@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.SystemClock
+import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -27,6 +28,7 @@ import com.tomer.tomershare.utils.Utils.Companion.bytesFromLong
 import com.tomer.tomershare.utils.Utils.Companion.fileName
 import com.tomer.tomershare.utils.Utils.Companion.longFromBytearray
 import com.tomer.tomershare.utils.Utils.Companion.rotate
+import com.tomer.tomershare.utils.ZipUtils.Companion.toZip
 import java.io.File
 import java.net.DatagramSocket
 import java.net.Inet4Address
@@ -43,14 +45,13 @@ class ActivitySending : AppCompatActivity() {
 
     //region GLOBALS---->>>
     private val b by lazy { ActivitySendingBinding.inflate(layoutInflater) }
-    private val adapSend by lazy { AdaptMsg(this, this::closeCurrFile) }
+    private val adaptSend by lazy { AdaptMsg(this, this::closeCurrFile) }
     private val list = mutableListOf<TransferModal>()
 
     private var soc: Socket? = null
     private var serverSocket: ServerSocket? = null
 
     private var time: Long = 0
-    private var timeCurrent: Long = 0
 
     @Volatile
     private var index = -1
@@ -66,7 +67,7 @@ class ActivitySending : AppCompatActivity() {
     private var finalTotalBytes = 0L
 
     @Volatile
-    private var canSend = true
+    private var canSend = false
     private var stopped = false
 
     @Volatile
@@ -95,7 +96,6 @@ class ActivitySending : AppCompatActivity() {
         //region HANDLE SELECTED URIS--->>
         val action = intent.action
         if (Intent.ACTION_SEND == action) {
-            canSend = false
             val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
             else intent.getParcelableExtra(Intent.EXTRA_STREAM)
             if (uri != null) {
@@ -105,7 +105,6 @@ class ActivitySending : AppCompatActivity() {
                 }
             }
         } else if (Intent.ACTION_SEND_MULTIPLE == action) {
-            canSend = false
             val uis = intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
             thread {
                 for (uri in uis!!)
@@ -113,6 +112,20 @@ class ActivitySending : AppCompatActivity() {
                 canSend = true
             }
         }
+
+        //check if there is any folder in Selected files...
+        thread {
+            val tempFol = File(cacheDir, "temps")
+            if (!tempFol.exists()) tempFol.mkdirs()
+            Utils.sendQueue.forEach { mod ->
+                if (mod.file.isDirectory) {
+                    mod.file = mod.file.toZip(tempFol)
+                    mod.name = mod.name + ".fol"
+                }
+            }
+            canSend = true
+        }
+
         //endregion HANDLE SELECTED URIS--->>
 
         thread {
@@ -125,8 +138,6 @@ class ActivitySending : AppCompatActivity() {
             if (ip != "NOT") {
                 b.root.post {
                     b.tvIpShow.text = ip
-                    b.imgQRRota.rotate()
-                    b.imgAvatarReceiver.rotate()
                 }
             }
             b.root.post {
@@ -145,15 +156,9 @@ class ActivitySending : AppCompatActivity() {
             }
         }
 
-    }
+        b.imgQRRota.rotate()
+        b.imgAvatarReceiver.rotate()
 
-
-    override fun onPause() {
-        super.onPause()
-    }
-
-    override fun onResume() {
-        super.onResume()
     }
 
     override fun onDestroy() {
@@ -175,14 +180,14 @@ class ActivitySending : AppCompatActivity() {
         b.root.post {
             b.imgQRRota.clearAnimation()
             b.layQr.visibility = View.GONE
-            b.tRv.adapter = adapSend
-            adapSend.submitList(list)
+            b.tRv.adapter = adaptSend
+            adaptSend.submitList(list)
             b.imgAvatarReceiver.apply {
                 clearAnimation()
                 rotation = 0f
                 setImageDrawable(ContextCompat.getDrawable(this@ActivitySending, Repo.getMid(avatar)))
             }
-            "Sending to $phoneName's Phone".also { b.tvSendingName.text }
+            "Sending to $phoneName".also { b.tvSendingName.text = it }
         }
     }
 
@@ -192,10 +197,10 @@ class ActivitySending : AppCompatActivity() {
                 progTop.visibility = View.GONE
                 finishView.visibility = View.VISIBLE
                 val li = mutableListOf<TransferModal>()
-                adapSend.currentList.forEach { mod ->
+                adaptSend.currentList.forEach { mod ->
                     li.add(TransferModal(mod.fileName))
                 }
-                adapSend.submitList(li)
+                adaptSend.submitList(li)
             }
         }
     }
@@ -212,7 +217,6 @@ class ActivitySending : AppCompatActivity() {
         val size: Long = bytesLong.longFromBytearray()
         val nameBytes = ByteArray(size.toInt())
         soc!!.getInputStream().read(nameBytes, 0, size.toInt())
-        // name of file currently receiving....... // Phone NAmeid{3}
         val phoneNameAndAvatar = String(nameBytes, StandardCharsets.UTF_8)
 
         runOnUiThread {
@@ -251,6 +255,7 @@ class ActivitySending : AppCompatActivity() {
 
     private fun onSendingDone() {
         soc!!.sendString("FINISH")
+        closeSockets()
         finishUI()
     }
 
@@ -280,13 +285,14 @@ class ActivitySending : AppCompatActivity() {
 
         while (Utils.sendQueue.isNotEmpty()) {
             val appModal = Utils.sendQueue.poll()!!
+            Log.d("TAG--", "sendData: ${appModal.file.path} ${Utils.humanReadableSize(appModal.file.length())}")
             runOnUiThread {
                 index++
-                adapSend.currentList[index].isTrans = true
-                adapSend.notifyItemChanged(index)
+                adaptSend.currentList[index].isTrans = true
+                adaptSend.notifyItemChanged(index)
                 try {
-                    adapSend.currentList[index - 1].isTrans = false
-                    adapSend.notifyItemChanged(index - 1)
+                    adaptSend.currentList[index - 1].isTrans = false
+                    adaptSend.notifyItemChanged(index - 1)
                 } catch (_: Exception) {
                 }
                 b.tRv.smoothScrollToPosition(list.size - 1)
@@ -437,8 +443,8 @@ class ActivitySending : AppCompatActivity() {
 
     private fun handelTempFiles(uri: Uri) {
 
-
         val parent = File(cacheDir, "temps")
+        if (!parent.exists()) parent.mkdirs()
         val name = uri.fileName()
         val f = File(parent, name)
 
@@ -449,7 +455,7 @@ class ActivitySending : AppCompatActivity() {
             }
             if (f.length() > 0)
                 Utils.sendQueue.offer(AppModal(name, "0", f, ContextCompat.getDrawable(this, R.drawable.appfi)!!))
-        } catch (e: Exception) {
+        } catch (_: Exception) {
         }
 
     }

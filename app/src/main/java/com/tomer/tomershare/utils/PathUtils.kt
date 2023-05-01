@@ -3,7 +3,6 @@ package com.tomer.tomershare.utils
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
-import java.io.File
 
 class PathUtils {
     companion object {
@@ -21,7 +20,6 @@ class PathUtils {
             } catch (_: Exception) {
                 return null
             }
-
             return null
         }
 
@@ -39,7 +37,6 @@ class PathUtils {
             } catch (_: Exception) {
                 return null
             }
-
             return null
         }
 
@@ -60,10 +57,6 @@ class PathUtils {
                 }
             }
             return if (path == null || path.isEmpty()) this.path else path
-        }
-
-        fun File.insert(context: Context){
-
         }
     }
 }

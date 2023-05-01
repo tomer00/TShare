@@ -34,6 +34,7 @@ import com.tomer.tomershare.utils.Utils
 import com.tomer.tomershare.utils.Utils.Companion.bytesFromLong
 import com.tomer.tomershare.utils.Utils.Companion.longFromBytearray
 import com.tomer.tomershare.utils.Utils.Companion.rotate
+import com.tomer.tomershare.utils.ZipUtils.Companion.unZipFile
 import java.io.File
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -58,15 +59,16 @@ class ActivityReceiving : AppCompatActivity() {
     private val bytesLong = ByteArray(8)
 
     private var time: Long = 0
-    private var timeCurrent: Long = 0
-
 
     @Volatile
     private var currTotalBytes = 0L
+
     @Volatile
     private var currentBytes = 0L
+
     @Volatile
     private var finalTotalBytes = 0L
+
     @Volatile
     private var transferGoing = false
     private var stopped = false
@@ -75,7 +77,7 @@ class ActivityReceiving : AppCompatActivity() {
     private var avatar = "1"
     private var phoneName = "Android"
 
-    private val parentFolder = File(Environment.getExternalStorageDirectory(), "tshare")
+    private val parentFolder = File(Environment.getExternalStorageDirectory(), "ttsh")
 
 
     @Throws(Exception::class)
@@ -121,6 +123,7 @@ class ActivityReceiving : AppCompatActivity() {
             else R.drawable.ic_hotspot
             row.imgNet.setImageDrawable(ContextCompat.getDrawable(this, netDr))
             row.imgIcon.setImageDrawable(ContextCompat.getDrawable(this, Repo.getMid(mod.icon)))
+            row.tvName.text = mod.name
 
             row.root.tag = mod
             row.root.setOnClickListener(cliRvTop)
@@ -137,6 +140,7 @@ class ActivityReceiving : AppCompatActivity() {
             }
         }
 
+        "Connecting with $phoneName...".also { b.tvSendingName.text = it }
         b.imgAvatarReceiver.rotate()
         openNewConn()
     }
@@ -158,10 +162,11 @@ class ActivityReceiving : AppCompatActivity() {
                 rotation = 0f
                 setImageDrawable(ContextCompat.getDrawable(this@ActivityReceiving, Repo.getMid(avatar)))
             }
-            "Receiving from $phoneName's Phone".also { b.tvSendingName.text = it }
+            "Receiving from $phoneName".also { b.tvSendingName.text = it }
             b.btShowQR.visibility = View.GONE
             b.rvTop.visibility = View.GONE
             b.imgNoAnim.visibility = View.GONE
+            b.tvNOConn.visibility = View.GONE
         }
     }
 
@@ -186,6 +191,7 @@ class ActivityReceiving : AppCompatActivity() {
                 } catch (e: Exception) {
                     runOnUiThread {
                         if (!stopped && !transferGoing) {
+                            "Failed to connect...".also { b.tvSendingName.text = it }
                             b.btShowQR.visibility = View.VISIBLE
                             b.btShowQR.animate().apply {
                                 scaleY(1f)
@@ -308,6 +314,17 @@ class ActivityReceiving : AppCompatActivity() {
                         if (soc!!.isClosed) {
                             reListen()
                             return@thread
+                        } else {
+                            if (f.extension == "fol") {
+                                runOnUiThread {
+                                    thread {
+                                        val fileFol = File(parentFolder, fileReceiving)
+                                        fileFol.unZipFile()
+                                        fileFol.delete()
+                                    }
+                                }
+                            }
+
                         }
                     } catch (_: Exception) {
                         reListen()
@@ -391,6 +408,7 @@ class ActivityReceiving : AppCompatActivity() {
         val man = getSystemService(Context.WIFI_SERVICE) as WifiManager
         val modalNetwork = ModalNetwork(add, name, man.isWifiEnabled, icon)
         var found = false
+        networkList.addAll(repo.getAllNetwork())
         networkList.forEach {
             if (it.address == modalNetwork.address) found = true
         }
@@ -398,12 +416,11 @@ class ActivityReceiving : AppCompatActivity() {
         openNewConn()
         repo.saveLast(modalNetwork)
         if (found) return
-        networkList.removeIf { it.name == modalNetwork.name && it.isWifi == modalNetwork.isWifi }
         networkList.add(modalNetwork)
+        repo.setAllNetwork(networkList)
         val shot = repo.getShortcut() as MutableList<ModalNetwork>
         this.createShotCut(modalNetwork, shot)
         repo.saveShotCuts(shot)
-        repo.setAllNetwork(networkList)
     }
 
 

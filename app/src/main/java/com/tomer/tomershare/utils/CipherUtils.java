@@ -8,7 +8,7 @@ import java.nio.charset.StandardCharsets;
 
 public class CipherUtils {
     private static ByteBuffer saltBytes;
-    private static int a, size=32;
+    private static int a, size = 32;
 
     //region INITIALIZATION----->>>
 
@@ -48,7 +48,6 @@ public class CipherUtils {
         ByteArrayOutputStream bois = new ByteArrayOutputStream();
 
         try {
-
             int i = a;
             byte[] b = new byte[4];
             int n;
@@ -58,8 +57,7 @@ public class CipherUtils {
 
                 if (i == size) i = 0;
             }
-
-            return new String(bois.toByteArray(),StandardCharsets.UTF_8);
+            return new String(bois.toByteArray(), StandardCharsets.UTF_8);
         } catch (Exception e) {
             return null;
         } finally {

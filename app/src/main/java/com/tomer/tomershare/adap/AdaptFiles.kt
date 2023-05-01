@@ -31,14 +31,14 @@ class AdaptFiles(private val FL: FIleClickLis) : ListAdapter<FileModal, AdaptFil
 
     interface FIleClickLis {
         fun onFileClick(position: Int, indic: View, thumb: ImageView)
-        fun onFileLongClick(position: Int)
+        fun onFileLongClick(position: Int, indic: View, thumb: ImageView)
     }
 
     inner class FileHolder(val b: FileRowBinding, fl: FIleClickLis) : RecyclerView.ViewHolder(b.root) {
         init {
             b.root.setOnClickListener { fl.onFileClick(adapterPosition, b.fileINdi,b.img) }
             b.root.setOnLongClickListener {
-                fl.onFileLongClick(adapterPosition)
+                fl.onFileLongClick(adapterPosition, b.fileINdi,b.img)
                 return@setOnLongClickListener true
             }
         }
