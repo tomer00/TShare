@@ -8,7 +8,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.SystemClock
-import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -139,10 +138,8 @@ class ActivitySending : AppCompatActivity() {
                 )
             }
             try {
-                Log.d("TAG--", "onCreate: LINNG....131")
                 soc = serverSocket!!.accept()
                 soc!!.sendBufferSize = Utils.OUT_BUFF
-                Log.d("TAG--", "onCreate: Connecrtes...")
                 onOpen()
             } catch (_: Exception) {
             }
@@ -183,15 +180,23 @@ class ActivitySending : AppCompatActivity() {
             b.imgAvatarReceiver.apply {
                 clearAnimation()
                 rotation = 0f
-                setImageDrawable(ContextCompat.getDrawable(this@ActivitySending,Repo.getMid(avatar)))
+                setImageDrawable(ContextCompat.getDrawable(this@ActivitySending, Repo.getMid(avatar)))
             }
-            b.tvSendingName.text = "Sending to $phoneName's Phone"
+            "Sending to $phoneName's Phone".also { b.tvSendingName.text }
         }
     }
 
     private fun finishUI() {
         runOnUiThread {
-            Log.d("TAG--", "onSendingDone: 183...")
+            b.apply {
+                progTop.visibility = View.GONE
+                finishView.visibility = View.VISIBLE
+                val li = mutableListOf<TransferModal>()
+                adapSend.currentList.forEach { mod ->
+                    li.add(TransferModal(mod.fileName))
+                }
+                adapSend.submitList(li)
+            }
         }
     }
 
@@ -201,47 +206,50 @@ class ActivitySending : AppCompatActivity() {
 
     //region SENDING FILES----->>>
 
+    @Throws(Exception::class)
     private fun readPhoneName() {
         soc!!.getInputStream().read(bytesLong, 0, 8)
         val size: Long = bytesLong.longFromBytearray()
         val nameBytes = ByteArray(size.toInt())
         soc!!.getInputStream().read(nameBytes, 0, size.toInt())
-        // name of file currently receiving....... // Phone NAme::id{3}
+        // name of file currently receiving....... // Phone NAmeid{3}
         val phoneNameAndAvatar = String(nameBytes, StandardCharsets.UTF_8)
 
-        avatar = phoneNameAndAvatar[size.toInt()].toString()
-        phoneName = phoneNameAndAvatar.substring(0, size.toInt() - 1)
-
-        Log.d("TAG--", "readPhoneName: 208... $avatar $phoneName")
+        runOnUiThread {
+            avatar = phoneNameAndAvatar[size.toInt() - 1].toString()
+            phoneName = phoneNameAndAvatar.substring(0, size.toInt() - 1)
+        }
     }
 
     private fun closeCurrFile() {
         if (!transferGoing) return
-        Log.d("TAG--", "closeCurrFile: Callde on line 193")
         soc!!.close()
     }
 
     private fun reListen() {
-        Log.d("TAG--", "reListen: 200...")
+        if (stopped) {
+            closeSockets()
+            return
+        }
         try {
             if (soc != null) soc!!.close()
+            b.root.postDelayed({
+                if (!transferGoing) {
+                    closeSockets()
+                }
+            }, 1000)
             soc = serverSocket!!.accept()
             runOnUiThread {
                 thread {
                     sendData()
                 }
             }
-
         } catch (_: Exception) {
+            finishUI()
         }
     }
 
     private fun onSendingDone() {
-        try {
-            adapSend.currentList[index].isTrans = false
-            adapSend.notifyItemChanged(index)
-        } catch (_: Exception) {
-        }
         soc!!.sendString("FINISH")
         finishUI()
     }
@@ -252,14 +260,15 @@ class ActivitySending : AppCompatActivity() {
             try {
                 if (canSend) {
                     time = SystemClock.elapsedRealtime()
-//                    readPhoneName()
+                    readPhoneName()
                     intiUI()
                     sendData()
                     canSend = false
                     break
                 } else SystemClock.sleep(20)
             } catch (_: Exception) {
-
+                finishUI()
+                break
             }
         }
     }
@@ -275,12 +284,12 @@ class ActivitySending : AppCompatActivity() {
                 index++
                 adapSend.currentList[index].isTrans = true
                 adapSend.notifyItemChanged(index)
-                Log.d("TAG--", "sendData: $index updated")
                 try {
                     adapSend.currentList[index - 1].isTrans = false
                     adapSend.notifyItemChanged(index - 1)
                 } catch (_: Exception) {
                 }
+                b.tRv.smoothScrollToPosition(list.size - 1)
                 b.progTop.updateProg(0f)
             }
 
@@ -290,6 +299,7 @@ class ActivitySending : AppCompatActivity() {
             } catch (_: Exception) {
                 closeSockets()
                 finishUI()
+                break
             }
 
             //getting the skip cursor from that file as long....
@@ -310,7 +320,6 @@ class ActivitySending : AppCompatActivity() {
                 }
             }
             transferGoing = false
-            Log.d("TAG--", "sendData: 272..line p aagya ${soc!!.isClosed}")
             if (soc!!.isClosed) {
                 reListen()
                 return
@@ -428,7 +437,6 @@ class ActivitySending : AppCompatActivity() {
 
     private fun handelTempFiles(uri: Uri) {
 
-        Log.d("TAG--", "This uri is made TempFIles...: $uri")
 
         val parent = File(cacheDir, "temps")
         val name = uri.fileName()
@@ -442,7 +450,6 @@ class ActivitySending : AppCompatActivity() {
             if (f.length() > 0)
                 Utils.sendQueue.offer(AppModal(name, "0", f, ContextCompat.getDrawable(this, R.drawable.appfi)!!))
         } catch (e: Exception) {
-            Log.e("TAG--", "handelTempFiles: ", e)
         }
 
     }

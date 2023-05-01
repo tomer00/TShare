@@ -3,13 +3,14 @@ package com.tomer.tomershare.trans
 import com.tomer.tomershare.utils.Utils
 import java.io.File
 import java.io.FileOutputStream
-import java.io.InputStream
+import java.net.Socket
 
 
 //Handle single File Receiving Completely
-class RecHandler(private val ins: InputStream, outFile: File, private var lis: (Int) -> Unit, private var remainSize: Long) : Runnable {
+class RecHandler(private val soc: Socket, outFile: File, private var lis: (Int) -> Unit, private var remainSize: Long) : Runnable {
 
     private lateinit var out: FileOutputStream
+    private val ins  = soc.getInputStream()
 
     private val data = ByteArray(Utils.BUFF_SIZE)
     private var r = 0
@@ -35,6 +36,7 @@ class RecHandler(private val ins: InputStream, outFile: File, private var lis: (
                 lis.invoke(r)
             }
         } catch (_: Exception) {
+            soc.close()
         }
         out.flush()
         out.close()

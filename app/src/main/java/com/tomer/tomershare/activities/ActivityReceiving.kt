@@ -9,12 +9,12 @@ import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.os.Environment
 import android.os.SystemClock
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.animation.OvershootInterpolator
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.journeyapps.barcodescanner.BarcodeCallback
 import com.journeyapps.barcodescanner.CompoundBarcodeView
@@ -24,16 +24,18 @@ import com.tomer.tomershare.databinding.ActivityRecivingBinding
 import com.tomer.tomershare.databinding.BarcodeDiaBinding
 import com.tomer.tomershare.databinding.RowNetBinding
 import com.tomer.tomershare.modal.ModalNetwork
+import com.tomer.tomershare.modal.TransferModal
 import com.tomer.tomershare.trans.RecHandler
+import com.tomer.tomershare.utils.CipherUtils
 import com.tomer.tomershare.utils.Repo
 import com.tomer.tomershare.utils.RepoPref
 import com.tomer.tomershare.utils.ShotCutCreator.Companion.createShotCut
 import com.tomer.tomershare.utils.Utils
 import com.tomer.tomershare.utils.Utils.Companion.bytesFromLong
 import com.tomer.tomershare.utils.Utils.Companion.longFromBytearray
+import com.tomer.tomershare.utils.Utils.Companion.rotate
 import java.io.File
 import java.net.InetSocketAddress
-import java.net.ServerSocket
 import java.net.Socket
 import java.nio.charset.StandardCharsets
 import java.util.regex.Pattern
@@ -43,7 +45,7 @@ class ActivityReceiving : AppCompatActivity() {
 
     //region GLOBALS--->>>
     private val b by lazy { ActivityRecivingBinding.inflate(layoutInflater) }
-    private val adapSend by lazy { AdaptMsg(this, this::closeCurrFile) }
+    private val adaptSend by lazy { AdaptMsg(this, this::closeCurrFile) }
 
 
     private val networkList by lazy { mutableListOf<ModalNetwork>() }
@@ -53,30 +55,21 @@ class ActivityReceiving : AppCompatActivity() {
     private val qrDia by lazy { crQr() }
 
     private var soc: Socket? = null
-    private var serverSocket: ServerSocket? = null
+    private val bytesLong = ByteArray(8)
 
     private var time: Long = 0
     private var timeCurrent: Long = 0
 
-    @Volatile
-    private var index = -1
-    private val bytesLong = ByteArray(8)
 
     @Volatile
     private var currTotalBytes = 0L
-
     @Volatile
     private var currentBytes = 0L
-
     @Volatile
     private var finalTotalBytes = 0L
-
-    @Volatile
-    private var canSend = true
-    private var stopped = false
-
     @Volatile
     private var transferGoing = false
+    private var stopped = false
 
 
     private var avatar = "1"
@@ -110,13 +103,20 @@ class ActivityReceiving : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(b.root)
 
-
-        if (intent.getStringExtra("ip").toString() != "null")
+        if (intent.getStringExtra("ip").toString() != "null") {
             Utils.ADDRESS = intent.getStringExtra("ip").toString()
-        else Utils.ADDRESS = repo.getLast().address
+            phoneName = intent.getStringExtra("name").toString()
+            avatar = intent.getStringExtra("icon").toString()
+        } else {
+            val mod = repo.getLast()
+            Utils.ADDRESS = mod.address
+            phoneName = mod.name
+            avatar = mod.icon
+        }
 
         repo.getAllNetwork().forEach { mod ->
-            val row = RowNetBinding.inflate(layoutInflater)
+            val view = layoutInflater.inflate(R.layout.row_net, b.rvTop, false)
+            val row = RowNetBinding.bind(view)
             val netDr = if (mod.isWifi) R.drawable.ic_wifi
             else R.drawable.ic_hotspot
             row.imgNet.setImageDrawable(ContextCompat.getDrawable(this, netDr))
@@ -127,9 +127,18 @@ class ActivityReceiving : AppCompatActivity() {
 
             b.rvTop.addView(row.root)
         }
+        b.btShowQR.setOnClickListener {
+            if (!checkPermission()) {
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), 100)
+            } else {
+                qrDia.show()
+                barcodeView.resume()
+                barcodeView.decodeSingle(callback)
+            }
+        }
 
+        b.imgAvatarReceiver.rotate()
         openNewConn()
-
     }
 
 
@@ -143,13 +152,16 @@ class ActivityReceiving : AppCompatActivity() {
     // Init ui from initial to receiving
     private fun intiUI() {
         b.root.post {
-            b.tRv.adapter = adapSend
+            b.tRv.adapter = adaptSend
             b.imgAvatarReceiver.apply {
                 clearAnimation()
                 rotation = 0f
                 setImageDrawable(ContextCompat.getDrawable(this@ActivityReceiving, Repo.getMid(avatar)))
             }
-            b.tvSendingName.text = "Receiving from $phoneName's Phone"
+            "Receiving from $phoneName's Phone".also { b.tvSendingName.text = it }
+            b.btShowQR.visibility = View.GONE
+            b.rvTop.visibility = View.GONE
+            b.imgNoAnim.visibility = View.GONE
         }
     }
 
@@ -158,29 +170,30 @@ class ActivityReceiving : AppCompatActivity() {
     //region RECEIVING FILES---->>
     private fun closeCurrFile() {
         if (!transferGoing) return
-        Log.d("TAG--", "closeCurrFile: Callde on line 193")
         soc!!.close()
     }
 
 
     private fun openNewConn() {
-        thread {
-            try {
-                if (soc != null) soc!!.close()
-                soc = Socket()
-                soc!!.bind(null)
-                soc!!.connect(InetSocketAddress(Utils.ADDRESS, Utils.SERVER_PORT))
-                onOpen()
-            } catch (e: Exception) {
-                runOnUiThread {
-                    if (!stopped && !transferGoing) {
-                        b.btShowQR.visibility = View.VISIBLE
-                        b.btShowQR.animate().apply {
-                            scaleY(1f)
-                            scaleX(1f)
-                            duration = 400
-                            interpolator = OvershootInterpolator(1.2f)
-                            start()
+        runOnUiThread {
+            thread {
+                try {
+                    if (soc != null) soc!!.close()
+                    soc = Socket()
+                    soc!!.bind(null)
+                    soc!!.connect(InetSocketAddress(Utils.ADDRESS, Utils.SERVER_PORT))
+                    onOpen()
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        if (!stopped && !transferGoing) {
+                            b.btShowQR.visibility = View.VISIBLE
+                            b.btShowQR.animate().apply {
+                                scaleY(1f)
+                                scaleX(1f)
+                                duration = 400
+                                interpolator = OvershootInterpolator(1.2f)
+                                start()
+                            }
                         }
                     }
                 }
@@ -190,78 +203,116 @@ class ActivityReceiving : AppCompatActivity() {
 
     private fun onOpen() {
         if (!parentFolder.exists()) parentFolder.mkdirs()
-        thread {
-            val pref = getSharedPreferences("NAME", MODE_PRIVATE)
-            soc!!.sendString("${pref.getString("name", "TShare")}::${pref.getString("icon", "1")}")
-            time = SystemClock.elapsedRealtime()
-            intiUI()
-            reconnect()
+        runOnUiThread {
+            thread {
+                val pref = getSharedPreferences("NAME", MODE_PRIVATE)
+                try {
+                    soc!!.sendString("${pref.getString("name", "TShare")}${pref.getString("icon", "1")}")
+                } catch (_: Exception) {
+                }
+                time = SystemClock.elapsedRealtime()
+                intiUI()
+                recData()
+            }
         }
-
     }
 
     private fun onFinish() {
         if (!stopped) {
             runOnUiThread {
-                Log.d("TAG--", "onSendingDone: 161...")
+                b.apply {
+                    progTop.visibility = View.GONE
+                    finishView.visibility = View.VISIBLE
+                    val li = mutableListOf<TransferModal>()
+                    adaptSend.currentList.forEach { mod ->
+                        li.add(TransferModal(mod.fileName))
+                    }
+                    adaptSend.submitList(li)
+                }
             }
         }
-
     }
 
-    private fun reconnect() {
+    private fun reListen() {
+        try {
+            if (soc != null) soc!!.close()
+            if (!stopped) {
+                soc = Socket()
+                soc!!.bind(null)
+                SystemClock.sleep(10)
+                soc!!.connect(InetSocketAddress(Utils.ADDRESS, Utils.SERVER_PORT))
+                recData()
+            }
+        } catch (e: Exception) {
+            onFinish()
+        }
+    }
+
+    private fun recData() {
         runOnUiThread {
             thread {
                 while (true) {
-                    soc!!.connect(InetSocketAddress(Utils.ADDRESS, Utils.SERVER_PORT))
-                    soc!!.getInputStream().read(bytesLong, 0, 8)
-                    val size: Long = bytesLong.longFromBytearray()
+                    try {
+                        soc!!.getInputStream().read(bytesLong, 0, 8)
+                        val size: Long = bytesLong.longFromBytearray()
 
-                    if (size > 260) {
-                        soc!!.close()
-                        reconnect()
-                        break
-                    }
-
-                    val nameBytes = ByteArray(size.toInt())
-                    soc!!.getInputStream().read(nameBytes)
-
-                    // name of file currently receiving.......
-                    val fileReceiving = String(nameBytes, StandardCharsets.UTF_8)
-
-                    if (fileReceiving == "FINISH") {
-                        onFinish()
-                        break
-                    }
-
-                    currentBytes = 0
-                    currTotalBytes = 0
-                    val f = File(parentFolder, fileReceiving)
-
-
-                    // sending cursor for this file
-                    if (f.exists()) {
-                        soc!!.getOutputStream().write(f.length().bytesFromLong())
-                        currTotalBytes = f.length()
-                        currentBytes = f.length()
-                    } else soc!!.getOutputStream().write((0L).bytesFromLong())
-
-
-                    // receiving the length remaining that we will be receiving...
-                    soc!!.getInputStream().read(bytesLong, 0, 8)
-                    val sizeReceiving = bytesLong.longFromBytearray()
-
-                    currTotalBytes += sizeReceiving
-                    onNewFIle(fileReceiving)
-                    RecHandler(soc!!.getInputStream(), f, { long ->
-                        finalTotalBytes += long
-                        currentBytes += long
-                        try {
-                            val p = ((currentBytes * 100) / currTotalBytes).toFloat()
-                            b.progTop.post { b.progTop.updateProg(p / 100) }
-                        } catch (_: Exception) {
+                        if (size > 260) {
+                            soc!!.close()
+                            reListen()
+                            break
                         }
-                    }, sizeReceiving)
+
+                        val nameBytes = ByteArray(size.toInt())
+                        soc!!.getInputStream().read(nameBytes)
+
+                        // name of file currently receiving.......
+                        val fileReceiving = String(nameBytes, StandardCharsets.UTF_8)
+
+                        if (fileReceiving == "FINISH") {
+                            onFinish()
+                            break
+                        }
+
+                        currentBytes = 0
+                        currTotalBytes = 0
+                        val f = File(parentFolder, fileReceiving)
+
+
+                        b.progTop.post { b.progTop.updateProg(0f) }
+                        // sending cursor for this file
+                        if (f.exists()) {
+                            soc!!.getOutputStream().write(f.length().bytesFromLong())
+                            currTotalBytes = f.length()
+                            currentBytes = f.length()
+                        } else soc!!.getOutputStream().write((0L).bytesFromLong())
+
+
+                        // receiving the length remaining that we will be receiving...
+                        soc!!.getInputStream().read(bytesLong, 0, 8)
+                        val sizeReceiving = bytesLong.longFromBytearray()
+
+                        currTotalBytes += sizeReceiving
+                        onNewFIle(fileReceiving)
+                        transferGoing = true
+                        RecHandler(soc!!, f, { long ->
+                            finalTotalBytes += long
+                            currentBytes += long
+                            try {
+                                val p = ((currentBytes * 100) / currTotalBytes).toFloat()
+                                b.progTop.post { b.progTop.updateProg(p / 100) }
+                            } catch (_: Exception) {
+                            }
+                        }, sizeReceiving)
+                        transferGoing = false
+
+                        if (soc!!.isClosed) {
+                            reListen()
+                            return@thread
+                        }
+                    } catch (_: Exception) {
+                        reListen()
+                        break
+                    }
                 }
             }
         }
@@ -270,44 +321,15 @@ class ActivityReceiving : AppCompatActivity() {
 
     private fun onNewFIle(name: String) {
         runOnUiThread {
-            b.apply {
-                imgCenter.rotate()
-                if (frLay.scaleX == 2f) {
-                    val a = b.imgNoAnim.drawable as AnimationDrawable
-                    a.stop()
-                    b.imgNoAnim.visibility = View.GONE
-                    b.tvNOConn.visibility = View.GONE
-
-                    b.btShowQR.animate().apply {
-                        scaleY(0f)
-                        scaleX(0f)
-                        translationYBy(200F)
-                        duration = 600
-                        withEndAction { b.btShowQR.visibility = View.GONE }
-                        start()
-                    }
-
-                    frLay.animate().apply {
-                        x(imgRotHelper.x)
-                        y(imgRotHelper.y)
-                        scaleY(0.8f)
-                        scaleX(0.8f)
-                        duration = 600
-                        start()
-                    }
-                    progRec.animate().apply {
-                        scaleX(1f)
-                        duration = 600
-                        start()
-                    }
-                    frLay.setOnClickListener(null)
-                }
+            val list = mutableListOf<TransferModal>()
+            list.addAll(adaptSend.currentList)
+            list.add(TransferModal(name, true))
+            adaptSend.submitList(list)
+            try {
+                adaptSend.currentList[list.size - 2].isTrans = false
+                adaptSend.notifyItemChanged(list.size - 2)
+            } catch (_: Exception) {
             }
-
-            val list = mutableListOf<String>()
-            list.addAll(adapMsg.currentList)
-            list.add("$name,.,rec")
-            adapMsg.submitList(list)
             b.tRv.smoothScrollToPosition(list.size - 1)
         }
     }
@@ -316,13 +338,11 @@ class ActivityReceiving : AppCompatActivity() {
     private fun closeSockets() {
         try {
             if (soc != null) soc!!.close()
-            if (serverSocket != null) serverSocket!!.close()
         } catch (_: Exception) {
         }
     }
 
     //endregion RECEIVING FILES---->>
-
 
     //region BARCODE CALLBACK
 
@@ -338,15 +358,21 @@ class ActivityReceiving : AppCompatActivity() {
         }
         fb.barcodeView.setStatusText("")
         barcodeView = fb.barcodeView
-        fb.btCross.translationY = -120f
-        fb.btCross.animate().translationY(0f).setDuration(600).setStartDelay(400).start()
+        fb.btCross.translationY = 120f
+        fb.btCross.animate().translationY(0f).setDuration(400).setStartDelay(400).start()
+
+        qrd.setOnCancelListener {
+            barcodeView.pause()
+        }
+
         return qrd
     }
 
     private fun callBack() = BarcodeCallback { result ->
         barcodeView.pause()
         qrDia.dismiss()
-        val sts = result?.text.toString().split(Pattern.compile("::"), 3)
+        val sts = CipherUtils.performString(result?.text.toString()).split(Pattern.compile("::"), 3)
+//        val sts = result?.text.toString().split(Pattern.compile("::"), 3)
         if (sts.size != 3) return@BarcodeCallback
         if (sts[1] == "NOT") {
             b.imgNoAnim.visibility = View.VISIBLE
@@ -356,6 +382,8 @@ class ActivityReceiving : AppCompatActivity() {
                 a.start()
             return@BarcodeCallback
         }
+        avatar = sts[2]
+        phoneName = sts[0]
         saveIpAndOpenConnection(sts[1], sts[0], sts[2])
     }
 
@@ -367,7 +395,7 @@ class ActivityReceiving : AppCompatActivity() {
             if (it.address == modalNetwork.address) found = true
         }
         Utils.ADDRESS = modalNetwork.address
-        onOpen()
+        openNewConn()
         repo.saveLast(modalNetwork)
         if (found) return
         networkList.removeIf { it.name == modalNetwork.name && it.isWifi == modalNetwork.isWifi }

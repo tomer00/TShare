@@ -24,17 +24,18 @@ class ShotCutCreator {
                     .setShortLabel(it.name)
                     .setLongLabel("Receive ${it.name}")
                     .setIcon(Icon.createWithResource(this, Repo.getMid(it.icon)))
-                    .setIntent(getIntent(it.address))
+                    .setIntent(getIntent(it))
                     .build()
                 list.add(info)
             }
             man.dynamicShortcuts = list
         }
 
-        private fun getIntent(ip: String): Intent {
+        private fun getIntent(ip: ModalNetwork): Intent {
             return Intent(Intent.ACTION_VIEW, Uri.parse("rec://new")).apply {
-                putExtra("ip", ip)
-
+                putExtra("ip", ip.address)
+                putExtra("name", ip.name)
+                putExtra("icon", ip.icon)
             }
         }
     }

@@ -13,10 +13,33 @@
         android:id="@+id/topBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:animateLayoutChanges="true"
         android:background="@color/co_main"
         android:paddingHorizontal="4dp"
         android:paddingVertical="12dp"
         app:layout_constraintTop_toTopOf="parent">
+
+
+        <FrameLayout
+            android:id="@+id/finishCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#D2EDFC"
+            android:minHeight="72dp"
+            app:layout_constraintEnd_toEndOf="@id/progTop"
+            app:layout_constraintStart_toStartOf="@id/progTop"
+            app:layout_constraintTop_toTopOf="@id/progTop">
+
+            <ImageView
+                android:visibility="gone"
+                android:id="@+id/finishView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:adjustViewBounds="true"
+                android:src="@drawable/avtar_1"
+                android:contentDescription="@string/des" />
+
+        </FrameLayout>
 
         <com.tomer.tomershare.utils.ProgressView
             android:id="@+id/progTop"
@@ -26,25 +49,19 @@
 
         <HorizontalScrollView
             android:layout_width="0dp"
+            android:layout_height="wrap_content"
             android:layout_marginHorizontal="8dp"
-            app:layout_constraintStart_toStartOf="@id/progTop"
             android:scrollbarSize="0dp"
-            app:layout_constraintTop_toTopOf="@id/progTop"
             app:layout_constraintBottom_toBottomOf="@id/progTop"
             app:layout_constraintEnd_toEndOf="@id/progTop"
-            android:layout_height="wrap_content">
+            app:layout_constraintStart_toStartOf="@id/progTop"
+            app:layout_constraintTop_toTopOf="@id/progTop">
 
             <LinearLayout
                 android:id="@+id/rvTop"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content">
-                <include layout="@layout/row_net" />
-                <include layout="@layout/row_net" />
-                <include layout="@layout/row_net" />
-                <include layout="@layout/row_net" />
-                <include layout="@layout/row_net" />
-                <include layout="@layout/row_net" />
-            </LinearLayout>
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" />
         </HorizontalScrollView>
 
 
@@ -52,11 +69,13 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:background="@drawable/frame"
-            app:layout_constraintBottom_toBottomOf="@id/progTop"
-            app:layout_constraintEnd_toEndOf="@id/progTop"
-            app:layout_constraintStart_toStartOf="@id/progTop"
-            app:layout_constraintTop_toTopOf="@id/progTop" />
+            android:elevation="4dp"
+            app:layout_constraintBottom_toBottomOf="@id/finishCard"
+            app:layout_constraintEnd_toEndOf="@id/finishCard"
+            app:layout_constraintStart_toStartOf="@id/finishCard"
+            app:layout_constraintTop_toTopOf="@id/finishCard" />
 
+        <!--        details showing of current metric   -->
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -66,18 +85,6 @@
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <androidx.cardview.widget.CardView
-            android:id="@+id/finishCard"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:layout_constraintTop_toBottomOf="@id/progTop">
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-        </androidx.cardview.widget.CardView>
 
         <Space
             android:layout_width="match_parent"
@@ -89,23 +96,23 @@
     <ImageView
         android:id="@+id/imgAvatarReceiver"
         android:layout_width="0dp"
-        android:layout_height="0dp"
+        android:layout_height="32dp"
         android:layout_marginStart="8dp"
         android:contentDescription="@string/des"
         android:src="@drawable/logo"
         app:layout_constraintBottom_toBottomOf="@id/tvSendingName"
         app:layout_constraintDimensionRatio="1"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@id/tvSendingName" />
+        app:layout_constraintStart_toStartOf="parent" />
 
     <TextView
         android:id="@+id/tvSendingName"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
+        android:maxLines="1"
         android:layout_marginTop="8dp"
         android:fontFamily="@font/quantico_bold_italic"
-        android:text="Recirving from to Himu's Phone"
+        android:text="Tryinf to Connect..."
         android:textSize="16sp"
         app:layout_constraintBottom_toBottomOf="@id/topBar"
         app:layout_constraintStart_toEndOf="@id/imgAvatarReceiver" />

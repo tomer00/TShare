@@ -6,13 +6,13 @@
 
     <ImageView
         android:id="@+id/btCross"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
         android:layout_gravity="end"
-        android:layout_marginEnd="12dp"
+        android:layout_marginEnd="20dp"
         android:background="@drawable/r_f_bg"
         android:contentDescription="@string/des"
-        android:padding="12dp"
+        android:padding="10dp"
         android:src="@drawable/cross"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
@@ -20,15 +20,16 @@
 
     <androidx.cardview.widget.CardView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        app:cardCornerRadius="32dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        app:layout_constraintDimensionRatio="1"
+        app:cardCornerRadius="24dp"
         app:layout_constraintTop_toBottomOf="@+id/btCross">
 
         <com.journeyapps.barcodescanner.CompoundBarcodeView
             android:id="@+id/barcodeView"
             android:layout_width="match_parent"
-            android:layout_height="400dp" />
+            android:layout_height="match_parent" />
     </androidx.cardview.widget.CardView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

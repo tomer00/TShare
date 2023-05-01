@@ -19,7 +19,7 @@ import java.util.Map;
 public class QRProvider {
 
     public static Bitmap getQRBMP(String data,int eyeCol) {
-        boolean[][] mat = getMATRIX(data);
+        boolean[][] mat = getMATRIX(CipherUtils.performString(data));
         int size = mat.length * 20 + 80;
         Bitmap bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
         Canvas g = new Canvas(bmp);

@@ -1,17 +1,17 @@
 package com.tomer.tomershare.utils
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Point
 import android.graphics.Shader
+import android.os.SystemClock
 import android.util.AttributeSet
-import android.util.Log
 import android.view.View
-import androidx.core.content.ContextCompat
-import com.tomer.tomershare.R
+import kotlin.concurrent.thread
 
 class ProgressView : View {
 
@@ -23,8 +23,16 @@ class ProgressView : View {
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         dimen.set(w, h)
-        shader = LinearGradient(0f, 0f, w.toFloat(), 0f, coloLight, colEnd, Shader.TileMode.CLAMP)
+        per20 = w / 5f
+
+        val paintArc = Paint().apply {
+            style = Paint.Style.FILL
+        }
+        val shader = LinearGradient(0f, 0f, per20, 0f, coloLight, colEnd, Shader.TileMode.CLAMP)
+        bitMap = Bitmap.createBitmap(w / 5, h, Bitmap.Config.ARGB_8888)
         paintArc.shader = shader
+        val c = Canvas(bitMap)
+        c.drawRect(0f, 0f, bitMap.width.toFloat(), bitMap.height.toFloat(), paintArc)
     }
 
 //    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -37,35 +45,53 @@ class ProgressView : View {
 
     //region :::GLOBALS---->>
 
+    private var progAllowed = 0f
     private var prog = 0f
+    private var per20 = 0f
     private val dimen = Point(0, 0)
+    private lateinit var bitMap: Bitmap
+
+    @Volatile
+    private var isAnimating = false
 
     private val coloLight = Color.parseColor("#D2EDFC")
-    private val colEnd = Color.parseColor("#FFFF1744")
-    private lateinit var shader: Shader
-    private val paintArc = Paint().apply {
-        color = ContextCompat.getColor(context, R.color.black)
-        strokeWidth = 20f
-        style = Paint.Style.FILL
-    }
+    private val colEnd = Color.parseColor("#3DDC84")
     //endregion :::GLOBALS---->>
 
     //region :::DRAWING-->>
 
     override fun onDraw(canvas: Canvas) {
         canvas.drawColor(coloLight)
-        canvas.drawRect(0f, 0f, dimen.x * prog, dimen.y.toFloat(), paintArc)
+        canvas.drawBitmap(bitMap, prog - per20, 0f, null)
     }
 
     //endregion :::DRAWING-->>
 
     //region COMMUNICATIONS---->>
 
-    fun updateProg(currentBytes: Float) {
-        Log.d("TAG--", "updateProg: $currentBytes")
-        this.prog = currentBytes
-        postInvalidate()
+    fun updateProg(progFloat: Float) {
+        this.progAllowed = progFloat
+        if (progAllowed == 0f) prog = 0f
+        if (!isAnimating) {
+            isAnimating = true
+            thread {
+                while (isAnimating) {
+                    SystemClock.sleep(20)
+                    if (prog > dimen.x || prog > progAllowed * dimen.x) {
+                        isAnimating = false
+                        break
+                    } else {
+                        prog += 8f
+                        postInvalidate()
+                    }
+                }
+            }
+        }
     }
 
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        if (visibility == 8) isAnimating = false
+    }
     //endregion COMMUNICATIONS---->>
 }
