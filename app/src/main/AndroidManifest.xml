@@ -32,7 +32,7 @@
             android:name=".activities.ActivityReceiving"
             android:exported="true"
             android:label="Share with all devices.."
-            android:launchMode="singleInstance"
+            android:launchMode="singleTask"
             android:screenOrientation="portrait"
             tools:ignore="LockedOrientationActivity">
             <intent-filter>
@@ -50,7 +50,7 @@
             android:name=".activities.ActivitySending"
             android:exported="true"
             android:label="Share with all devices.."
-            android:launchMode="singleInstance"
+            android:launchMode="singleTask"
             android:screenOrientation="portrait"
             tools:ignore="LockedOrientationActivity">
             <intent-filter>

@@ -293,6 +293,7 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
     }
 
     override fun onFileLongClick(position: Int, indic: View, thumb: ImageView) {
+        if (position == 0) return
         delFile = adapFiles.currentList[position].file
         if (delFile.isDirectory) {
             if (indic.visibility == View.GONE) {
@@ -339,25 +340,25 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
 //region HELPER FUNCTIONS
 
 
-    private fun changeFile(position: Int, visi: Byte) {
+    private fun changeFile(position: Int, vise: Byte) {
         val tm = mutableListOf<FileModal>()
         tm.addAll(adapFiles.currentList)
-        tm[position].visi = visi
+        tm[position].visi = vise
         adapFiles.submitList(tm)
     }
 
     private fun createModals(files: Array<File>) {
         val fModals = mutableListOf<FileModal>()
-        val filesd = mutableListOf<FileModal>()
+        val filed = mutableListOf<FileModal>()
         fModals.add(FileModal("..", Environment.getExternalStorageDirectory(), ContextCompat.getDrawable(this, R.drawable.ic_folder)!!))
         for (fl in files) {
             if (fl.isDirectory) {
                 if (!fl.name.startsWith(".")) fModals.add(FileModal(fl.name, fl, ContextCompat.getDrawable(this, R.drawable.ic_folder)!!))
-            } else filesd.add(FileModal(fl.name, fl, listDrawable[mapFile[(fl.extension).lowercase()] ?: 4]))
+            } else filed.add(FileModal(fl.name, fl, listDrawable[mapFile[(fl.extension).lowercase()] ?: 4]))
         }
         fModals.sortBy { it.name }
-        filesd.sortBy { it.name }
-        fModals.addAll(filesd)
+        filed.sortBy { it.name }
+        fModals.addAll(filed)
         adapFiles.submitList(fModals)
     }
 

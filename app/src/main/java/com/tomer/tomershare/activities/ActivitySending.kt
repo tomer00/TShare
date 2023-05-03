@@ -18,6 +18,7 @@ import com.tomer.tomershare.databinding.ActivitySendingBinding
 import com.tomer.tomershare.modal.AppModal
 import com.tomer.tomershare.modal.TransferModal
 import com.tomer.tomershare.trans.SendHandler
+import com.tomer.tomershare.utils.EndPosterProvider.Companion.getEndPoster
 import com.tomer.tomershare.utils.PathUtils.Companion.getFilePath
 import com.tomer.tomershare.utils.PathUtils.Companion.getImagePath
 import com.tomer.tomershare.utils.PathUtils.Companion.getVideoPath
@@ -161,6 +162,28 @@ class ActivitySending : AppCompatActivity() {
 
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (transferGoing) {
+            val action = intent.action
+            if (Intent.ACTION_SEND == action) {
+                val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                else intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                if (uri != null) {
+                    thread {
+                        handleFile(uri)
+                    }
+                }
+            } else if (Intent.ACTION_SEND_MULTIPLE == action) {
+                val uis = intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
+                thread {
+                    for (uri in uis!!)
+                        handleFile(uri)
+                }
+            }
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         stopped = true
@@ -195,7 +218,20 @@ class ActivitySending : AppCompatActivity() {
         runOnUiThread {
             b.apply {
                 progTop.visibility = View.GONE
+
+                val timeTaken = SystemClock.elapsedRealtime() - time
+                val volume = Utils.humanReadableSize(finalTotalBytes)
+                try {
+                    val speed = String.format("%1$.2f", (finalTotalBytes / 1048576f) / (timeTaken / 1000f))
+                    finishView.setImageBitmap(this@ActivitySending.getEndPoster(speed, volume))
+                } catch (_: Exception) {
+                    finishView.setImageBitmap(this@ActivitySending.getEndPoster("0.00", volume))
+                }
                 finishView.visibility = View.VISIBLE
+
+                val tme = (timeTaken / 1000).toInt()
+                "Sent in just ${tme / 60} min and ${tme % 60} seconds...".also { tvSendingName.text = it }
+                imgAvatarReceiver.setImageDrawable(ContextCompat.getDrawable(this@ActivitySending, R.drawable.ic_clock))
                 val li = mutableListOf<TransferModal>()
                 adaptSend.currentList.forEach { mod ->
                     li.add(TransferModal(mod.fileName))

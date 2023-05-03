@@ -47,7 +47,7 @@ class Utils {
         }
 
         fun View.haptic(){
-            if (Build.VERSION.SDK_INT>=Build.VERSION_CODES.R) this.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK,HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING)
+            if (Build.VERSION.SDK_INT>=Build.VERSION_CODES.R) this.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK,HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING)
         }
 
         private fun String.decode(): String = URLDecoder.decode(this, StandardCharsets.UTF_8.toString())
@@ -65,9 +65,9 @@ class Utils {
 
         fun humanReadableSize(apkSize: Long): String {
             return  when {
-                apkSize < 1024 -> String.format("%1$.2f B", apkSize.toDouble())
-                apkSize < 1024.0.pow(2.0) -> String.format("%1$.2f KB", (apkSize / 1024).toDouble())
-                apkSize < 1024.0.pow(3.0) -> String.format("%1$.2f MB", apkSize / 1024.0.pow(2.0))
+                apkSize < 1024 -> String.format("%1$.0f B", apkSize.toDouble())
+                apkSize < 1024.0.pow(2.0) -> String.format("%1$.0f KB", (apkSize / 1024).toDouble())
+                apkSize < 1024.0.pow(3.0) -> String.format("%1$.1f MB", apkSize / 1024.0.pow(2.0))
                 else -> String.format("%1$.2f GB", apkSize / 1024.0.pow(3.0))
             }
         }

@@ -27,6 +27,7 @@ import com.tomer.tomershare.modal.ModalNetwork
 import com.tomer.tomershare.modal.TransferModal
 import com.tomer.tomershare.trans.RecHandler
 import com.tomer.tomershare.utils.CipherUtils
+import com.tomer.tomershare.utils.EndPosterProvider.Companion.getEndPoster
 import com.tomer.tomershare.utils.Repo
 import com.tomer.tomershare.utils.RepoPref
 import com.tomer.tomershare.utils.ShotCutCreator.Companion.createShotCut
@@ -77,7 +78,7 @@ class ActivityReceiving : AppCompatActivity() {
     private var avatar = "1"
     private var phoneName = "Android"
 
-    private val parentFolder = File(Environment.getExternalStorageDirectory(), "ttsh")
+    private val parentFolder = File(Environment.getExternalStorageDirectory(), "tshare")
 
 
     @Throws(Exception::class)
@@ -139,7 +140,6 @@ class ActivityReceiving : AppCompatActivity() {
                 barcodeView.decodeSingle(callback)
             }
         }
-
         "Connecting with $phoneName...".also { b.tvSendingName.text = it }
         b.imgAvatarReceiver.rotate()
         openNewConn()
@@ -152,6 +152,35 @@ class ActivityReceiving : AppCompatActivity() {
         closeSockets()
     }
 
+    // Finish ui
+    private fun onFinish() {
+        if (!stopped) {
+            runOnUiThread {
+                b.apply {
+                    val timeTaken = SystemClock.elapsedRealtime() - time
+                    progTop.visibility = View.GONE
+
+                    val volume = Utils.humanReadableSize(finalTotalBytes)
+                    try {
+                        val speed = String.format("%1$.2f", (finalTotalBytes / 1048576f) / (timeTaken / 1000f))
+                        finishView.setImageBitmap(this@ActivityReceiving.getEndPoster(speed, volume))
+                    } catch (_: Exception) {
+                        finishView.setImageBitmap(this@ActivityReceiving.getEndPoster("0.00", volume))
+                    }
+                    finishView.visibility = View.VISIBLE
+
+                    val tme = (timeTaken / 1000).toInt()
+                    "Received in just ${tme / 60} min and ${tme % 60} seconds...".also { tvSendingName.text = it }
+                    imgAvatarReceiver.setImageDrawable(ContextCompat.getDrawable(this@ActivityReceiving, R.drawable.ic_clock))
+                    val li = mutableListOf<TransferModal>()
+                    adaptSend.currentList.forEach { mod ->
+                        li.add(TransferModal(mod.fileName))
+                    }
+                    adaptSend.submitList(li)
+                }
+            }
+        }
+    }
 
     // Init ui from initial to receiving
     private fun intiUI() {
@@ -181,6 +210,11 @@ class ActivityReceiving : AppCompatActivity() {
 
     private fun openNewConn() {
         runOnUiThread {
+            b.root.postDelayed({
+                if (transferGoing) return@postDelayed
+                if (!soc!!.isClosed) return@postDelayed
+                if (soc != null) soc!!.close()
+            }, 1000)
             thread {
                 try {
                     if (soc != null) soc!!.close()
@@ -188,7 +222,7 @@ class ActivityReceiving : AppCompatActivity() {
                     soc!!.bind(null)
                     soc!!.connect(InetSocketAddress(Utils.ADDRESS, Utils.SERVER_PORT))
                     onOpen()
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     runOnUiThread {
                         if (!stopped && !transferGoing) {
                             "Failed to connect...".also { b.tvSendingName.text = it }
@@ -219,22 +253,6 @@ class ActivityReceiving : AppCompatActivity() {
                 time = SystemClock.elapsedRealtime()
                 intiUI()
                 recData()
-            }
-        }
-    }
-
-    private fun onFinish() {
-        if (!stopped) {
-            runOnUiThread {
-                b.apply {
-                    progTop.visibility = View.GONE
-                    finishView.visibility = View.VISIBLE
-                    val li = mutableListOf<TransferModal>()
-                    adaptSend.currentList.forEach { mod ->
-                        li.add(TransferModal(mod.fileName))
-                    }
-                    adaptSend.submitList(li)
-                }
             }
         }
     }

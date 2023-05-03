@@ -32,7 +32,7 @@ class ProgressView : View {
         bitMap = Bitmap.createBitmap(w / 5, h, Bitmap.Config.ARGB_8888)
         paintArc.shader = shader
         val c = Canvas(bitMap)
-        c.drawRect(0f, 0f, bitMap.width.toFloat(), bitMap.height.toFloat(), paintArc)
+        c.drawRect(0f, 0f, bitMap.width.toFloat(), h.toFloat(), paintArc)
     }
 
 //    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
