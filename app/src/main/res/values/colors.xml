@@ -9,4 +9,5 @@
     <color name="color_trans">#00000000</color>
     <color name="fore">#000</color>
     <color name="bg">#FFFFFF</color>
+    <color name="disCol">#B5B5B5</color>
 </resources>

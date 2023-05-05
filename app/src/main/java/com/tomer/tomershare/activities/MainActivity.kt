@@ -155,17 +155,13 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
             btRec.setOnClickListener {
                 it.haptic()
                 startActivity(Intent(this@MainActivity, ActivityReceiving::class.java))
-                overridePendingTransition(
-                    R.anim.enter_acti, R.anim.exit_d
-                )
+                overridePendingTransition(0, R.anim.exit_d)
             }
 
             btSend.setOnClickListener {
                 if (Utils.sendQueue.isNotEmpty()) {
                     startActivity(Intent(this@MainActivity, ActivitySending::class.java))
-                    overridePendingTransition(
-                        R.anim.enter_acti, R.anim.exit_d
-                    )
+                    overridePendingTransition(0, R.anim.exit_d)
                     if (isGal) {
                         galPos.forEach {
                             adapGal.l[it].visi = false
@@ -188,11 +184,6 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
                 }
             }
         }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        b.tvItems.text = Utils.sendQueue.size.toString()
     }
 
     //endregion ACTIVITIES METHODS
@@ -222,6 +213,7 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
             }
         }
         b.tvItems.text = Utils.sendQueue.size.toString()
+        updateButton()
     }
 
     override fun onGalClick(position: Int, img: ImageView) {
@@ -249,6 +241,7 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
             }
         }
         b.tvItems.text = Utils.sendQueue.size.toString()
+        updateButton()
     }
 
     override fun onFileClick(position: Int, indic: View, thumb: ImageView) {
@@ -289,6 +282,7 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
                 }
             }
             b.tvItems.text = Utils.sendQueue.size.toString()
+            updateButton()
         }
     }
 
@@ -315,6 +309,7 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
                 }
             }
             b.tvItems.text = Utils.sendQueue.size.toString()
+            updateButton()
             return
         }
         diaDelete.show()
@@ -322,6 +317,11 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
     }
 
 //endregion RECYCLER VIEW CLICKING
+
+    private fun updateButton() {
+        b.btSend.background = if (Utils.sendQueue.isEmpty()) ContextCompat.getDrawable(this, R.drawable.disabled_bt)
+        else ContextCompat.getDrawable(this, R.drawable.r_f_bg)
+    }
 
     @Deprecated("Updated in Future")
     override fun onBackPressed() {
@@ -468,7 +468,20 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
         map["rar"] = 5
         map["tar"] = 5
         map["tar.gz"] = 5
+        map["tar.xz"] = 5
         map["7z"] = 5
+
+        map["txt"] = 6
+        map["bat"] = 6
+        map["c"] = 6
+        map["cpp"] = 6
+        map["java"] = 6
+        map["py"] = 6
+        map["js"] = 6
+        map["json"] = 6
+        map["html"] = 6
+        map["php"] = 6
+        map["css"] = 6
 
         return map
     }
@@ -481,6 +494,7 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
         ContextCompat.getDrawable(this, R.drawable.ic_pdf)?.let { dr.add(it) }
         ContextCompat.getDrawable(this, R.drawable.file)?.let { dr.add(it) }
         ContextCompat.getDrawable(this, R.drawable.ic_zip)?.let { dr.add(it) }
+        ContextCompat.getDrawable(this, R.drawable.txt_file)?.let { dr.add(it) }
 
         return dr
     }

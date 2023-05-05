@@ -48,7 +48,7 @@ class Splash : AppCompatActivity() {
             btRec.setOnClickListener {
                 btRec.haptic()
                 startActivity(Intent(this@Splash, ActivityReceiving::class.java))
-                overridePendingTransition(R.anim.enter_acti, R.anim.exit_rec)
+                overridePendingTransition(0, R.anim.exit_rec)
                 root.postDelayed({ finish() }, 800)
             }
             btSend.setOnClickListener {
@@ -108,7 +108,7 @@ class Splash : AppCompatActivity() {
 
         fb.btSave.setOnClickListener {
             if (fb.etAdd.text.isNullOrEmpty()) {
-                fb.etAdd.error = "Entre Name"
+                fb.etAdd.error = "Your Name"
                 return@setOnClickListener
             }
             getSharedPreferences("NAME", MODE_PRIVATE).edit().putString("name", fb.etAdd.text.toString()).putString("icon", icon).apply()

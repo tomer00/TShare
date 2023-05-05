@@ -2,4 +2,5 @@
 <resources>
     <color name="fore">#FFFFFF</color>
     <color name="bg">#000</color>
+    <color name="disCol" >#444444</color>
 </resources>

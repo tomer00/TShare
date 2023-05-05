@@ -8,7 +8,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.SystemClock
-import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -108,8 +107,7 @@ class ActivitySending : AppCompatActivity() {
         } else if (Intent.ACTION_SEND_MULTIPLE == action) {
             val uis = intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
             thread {
-                for (uri in uis!!)
-                    handleFile(uri)
+                for (uri in uis!!) handleFile(uri)
                 canSend = true
             }
         }
@@ -129,26 +127,11 @@ class ActivitySending : AppCompatActivity() {
 
         //endregion HANDLE SELECTED URIS--->>
 
+
+        setNewQr()
+
         thread {
             serverSocket = ServerSocket(Utils.SERVER_PORT)
-            b.root.post {
-//                "SCAN CODE".also { b.tvpText.text = it }
-            }
-            val pref = getSharedPreferences("NAME", MODE_PRIVATE)
-            val ip = getIp()
-            if (ip != "NOT") {
-                b.root.post {
-                    b.tvIpShow.text = ip
-                }
-            }
-            b.root.post {
-                b.imgQR.setImageBitmap(
-                    QRProvider.getQRBMP(
-                        "${pref.getString("name", "Share")}::$ip::${pref.getString("icon", "1")}",
-                        ContextCompat.getColor(this, R.color.co_main)
-                    )
-                )
-            }
             try {
                 soc = serverSocket!!.accept()
                 soc!!.sendBufferSize = Utils.OUT_BUFF
@@ -177,8 +160,7 @@ class ActivitySending : AppCompatActivity() {
             } else if (Intent.ACTION_SEND_MULTIPLE == action) {
                 val uis = intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
                 thread {
-                    for (uri in uis!!)
-                        handleFile(uri)
+                    for (uri in uis!!) handleFile(uri)
                 }
             }
         }
@@ -192,6 +174,25 @@ class ActivitySending : AppCompatActivity() {
         val parent = File(cacheDir, "temps").listFiles()
         parent?.forEach { f ->
             f.delete()
+        }
+    }
+
+    private fun setNewQr() {
+        if (stopped) return
+        thread {
+            val ip = getIp()
+            runOnUiThread {
+                val pref = getSharedPreferences("NAME", MODE_PRIVATE)
+                b.tvIpShow.text = if (ip != "NOT") ip else ""
+                b.imgQR.setImageBitmap(
+                    QRProvider.getQRBMP(
+                        "${pref.getString("name", "Share")}::$ip::${pref.getString("icon", "1")}",
+                        ContextCompat.getColor(this, R.color.co_main)
+                    )
+                )
+                if (ip == "NOT")
+                    b.root.postDelayed(this::setNewQr, 2000)
+            }
         }
     }
 
@@ -267,10 +268,7 @@ class ActivitySending : AppCompatActivity() {
     }
 
     private fun reListen() {
-        if (stopped) {
-            closeSockets()
-            return
-        }
+        if (stopped) return
         try {
             if (soc != null) soc!!.close()
             b.root.postDelayed({
@@ -321,7 +319,6 @@ class ActivitySending : AppCompatActivity() {
 
         while (Utils.sendQueue.isNotEmpty()) {
             val appModal = Utils.sendQueue.poll()!!
-            Log.d("TAG--", "sendData: ${appModal.file.path} ${Utils.humanReadableSize(appModal.file.length())}")
             runOnUiThread {
                 index++
                 adaptSend.currentList[index].isTrans = true
@@ -405,8 +402,7 @@ class ActivitySending : AppCompatActivity() {
                     val add = into.nextElement()
                     if (!add.isLoopbackAddress && add is Inet4Address) {
                         str = add.hostAddress?.toString() ?: "NOT"
-                        if (!str.startsWith("192.168."))
-                            str = "NOT"
+                        if (!str.startsWith("192.168.")) str = "NOT"
                         return str
                     }
                 }
@@ -435,20 +431,17 @@ class ActivitySending : AppCompatActivity() {
         when (intent.type.toString()) {
             "video/*" -> {
                 val path = uri.getVideoPath(applicationContext).toString()
-                if (path != "null")
-                    Utils.sendQueue.offer(AppModal(uri.fileName(), "0", File(path), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+                if (path != "null") Utils.sendQueue.offer(AppModal(uri.fileName(), "0", File(path), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
                 else handelTempFiles(uri)
             }
             "image/*" -> {
                 val path = uri.getImagePath(applicationContext).toString()
-                if (path != "null")
-                    Utils.sendQueue.offer(AppModal(uri.fileName(), "0", File(path), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+                if (path != "null") Utils.sendQueue.offer(AppModal(uri.fileName(), "0", File(path), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
                 else handelTempFiles(uri)
             }
             "application/*" -> {
                 val path = uri.getFilePath(applicationContext).toString()
-                if (path != "null")
-                    Utils.sendQueue.offer(AppModal(uri.fileName(), "0", File(path), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+                if (path != "null") Utils.sendQueue.offer(AppModal(uri.fileName(), "0", File(path), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
                 else handelTempFiles(uri)
             }
             "text/*", "null" -> {
@@ -456,16 +449,13 @@ class ActivitySending : AppCompatActivity() {
             }
             else -> {
                 var path = uri.getFilePath(applicationContext).toString()
-                if (path != "null")
-                    Utils.sendQueue.offer(AppModal(uri.fileName(), "0", File(path), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+                if (path != "null") Utils.sendQueue.offer(AppModal(uri.fileName(), "0", File(path), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
                 else {
                     path = uri.getImagePath(applicationContext).toString()
-                    if (path != "null")
-                        Utils.sendQueue.offer(AppModal(uri.fileName(), "0", File(path), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+                    if (path != "null") Utils.sendQueue.offer(AppModal(uri.fileName(), "0", File(path), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
                     else {
                         path = uri.getVideoPath(applicationContext).toString()
-                        if (path != "null")
-                            Utils.sendQueue.offer(AppModal(uri.fileName(), "0", File(path), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+                        if (path != "null") Utils.sendQueue.offer(AppModal(uri.fileName(), "0", File(path), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
                         else {
                             handelTempFiles(uri)
                         }
@@ -489,8 +479,7 @@ class ActivitySending : AppCompatActivity() {
             ins.use { ins1 ->
                 ins1!!.copyTo(f.outputStream())
             }
-            if (f.length() > 0)
-                Utils.sendQueue.offer(AppModal(name, "0", f, ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+            if (f.length() > 0) Utils.sendQueue.offer(AppModal(name, "0", f, ContextCompat.getDrawable(this, R.drawable.appfi)!!))
         } catch (_: Exception) {
         }
 

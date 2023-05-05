@@ -211,8 +211,7 @@ class ActivityReceiving : AppCompatActivity() {
     private fun openNewConn() {
         runOnUiThread {
             b.root.postDelayed({
-                if (transferGoing) return@postDelayed
-                if (!soc!!.isClosed) return@postDelayed
+                if (soc!!.isConnected) return@postDelayed
                 if (soc != null) soc!!.close()
             }, 1000)
             thread {
