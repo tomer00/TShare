@@ -40,7 +40,7 @@
 
         </FrameLayout>
 
-        <com.tomer.tomershare.utils.ProgressView
+        <com.tomer.tomershare.views.ProgressView
             android:id="@+id/progTop"
             android:layout_width="match_parent"
             android:layout_height="72dp"
@@ -59,6 +59,7 @@
             <LinearLayout
                 android:id="@+id/rvTop"
                 android:layout_width="wrap_content"
+                android:animateLayoutChanges="true"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal" />
         </HorizontalScrollView>

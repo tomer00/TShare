@@ -1,4 +1,4 @@
-package com.tomer.tomershare.utils;
+package com.tomer.tomershare.views;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -12,6 +12,7 @@ import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
+import com.tomer.tomershare.utils.CipherUtils;
 
 import java.util.HashMap;
 import java.util.Map;

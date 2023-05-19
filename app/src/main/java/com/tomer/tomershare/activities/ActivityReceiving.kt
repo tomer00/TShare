@@ -2,11 +2,13 @@ package com.tomer.tomershare.activities
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.AnimationDrawable
 import android.graphics.drawable.ColorDrawable
 import android.net.wifi.WifiManager
 import android.os.Bundle
+import android.os.CountDownTimer
 import android.os.Environment
 import android.os.SystemClock
 import android.view.LayoutInflater
@@ -27,7 +29,6 @@ import com.tomer.tomershare.modal.ModalNetwork
 import com.tomer.tomershare.modal.TransferModal
 import com.tomer.tomershare.trans.RecHandler
 import com.tomer.tomershare.utils.CipherUtils
-import com.tomer.tomershare.utils.EndPosterProvider.Companion.getEndPoster
 import com.tomer.tomershare.utils.Repo
 import com.tomer.tomershare.utils.RepoPref
 import com.tomer.tomershare.utils.ShotCutCreator.Companion.createShotCut
@@ -36,6 +37,8 @@ import com.tomer.tomershare.utils.Utils.Companion.bytesFromLong
 import com.tomer.tomershare.utils.Utils.Companion.longFromBytearray
 import com.tomer.tomershare.utils.Utils.Companion.rotate
 import com.tomer.tomershare.utils.ZipUtils.Companion.unZipFile
+import com.tomer.tomershare.views.EndPosterProvider.Companion.getEndPoster
+import com.tomer.tomershare.widget.WidgetService
 import java.io.File
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -73,7 +76,30 @@ class ActivityReceiving : AppCompatActivity() {
     @Volatile
     private var transferGoing = false
     private var stopped = false
+    private var isService = false
 
+    private val serIntent by lazy { Intent(this, WidgetService::class.java) }
+    private val timer = object : CountDownTimer(400, 400) {
+        override fun onTick(p0: Long) {
+
+        }
+
+        override fun onFinish() {
+            val p = try {
+                ((currentBytes.toDouble()) / currTotalBytes).toFloat()
+            } catch (_: Exception) {
+                0f
+            }
+            b.progTop.post {
+                b.progTop.updateProg(p)
+                if (isService) {
+                    serIntent.putExtra("prog", p)
+                    startService(serIntent)
+                }
+                this.start()
+            }
+        }
+    }
 
     private var avatar = "1"
     private var phoneName = "Android"
@@ -95,6 +121,15 @@ class ActivityReceiving : AppCompatActivity() {
         avatar = mod.icon
         phoneName = mod.name
         openNewConn()
+    }
+
+    private val longcliRvtop = View.OnLongClickListener { v ->
+        val mod = v.tag as ModalNetwork
+        val list = repo.getAllNetwork().toMutableList()
+        list.remove(mod)
+        repo.setAllNetwork(list)
+        b.rvTop.removeView(v)
+        return@OnLongClickListener true
     }
 
     //endregion GLOBALS--->>>
@@ -128,6 +163,7 @@ class ActivityReceiving : AppCompatActivity() {
 
             row.root.tag = mod
             row.root.setOnClickListener(cliRvTop)
+            row.root.setOnLongClickListener(longcliRvtop)
 
             b.rvTop.addView(row.root)
         }
@@ -145,6 +181,24 @@ class ActivityReceiving : AppCompatActivity() {
         openNewConn()
     }
 
+    override fun onResume() {
+        super.onResume()
+        stopService(serIntent)
+        isService = false
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (transferGoing) {
+            startService(serIntent)
+            val name = adaptSend.currentList.last().fileName
+            serIntent.putExtra("name", name)
+            serIntent.putExtra("ext", name.subSequence(name.lastIndexOf('.') + 1, name.length))
+            startService(serIntent)
+            serIntent.removeExtra("name")
+            isService = true
+        }
+    }
 
     override fun onDestroy() {
         super.onDestroy()
@@ -159,6 +213,13 @@ class ActivityReceiving : AppCompatActivity() {
                 b.apply {
                     val timeTaken = SystemClock.elapsedRealtime() - time
                     progTop.visibility = View.GONE
+
+                    if (isService) {
+                        serIntent.removeExtra("name")
+                        serIntent.putExtra("done",'a')
+                        startService(serIntent)
+                        isService = false
+                    }
 
                     val volume = Utils.humanReadableSize(finalTotalBytes)
                     try {
@@ -301,7 +362,6 @@ class ActivityReceiving : AppCompatActivity() {
                         val f = File(parentFolder, fileReceiving)
 
 
-                        b.progTop.post { b.progTop.updateProg(0f) }
                         // sending cursor for this file
                         if (f.exists()) {
                             soc!!.getOutputStream().write(f.length().bytesFromLong())
@@ -315,19 +375,32 @@ class ActivityReceiving : AppCompatActivity() {
                         val sizeReceiving = bytesLong.longFromBytearray()
 
                         currTotalBytes += sizeReceiving
+
+                        b.root.post {
+                            val p = try {
+                                ((currentBytes * 100) / currTotalBytes).toFloat()
+                            } catch (_: Exception) {
+                                0f
+                            }
+                            b.progTop.updateProg(p / 100)
+                            if (isService) {
+                                serIntent.putExtra("name", fileReceiving)
+                                serIntent.putExtra("ext", f.extension)
+                                startService(serIntent)
+                                serIntent.removeExtra("name")
+                                serIntent.putExtra("prog", p / 100)
+                                startService(serIntent)
+                            }
+                        }
+                        timer.start()
                         onNewFIle(fileReceiving)
                         transferGoing = true
                         RecHandler(soc!!, f, { long ->
                             finalTotalBytes += long
                             currentBytes += long
-                            try {
-                                val p = ((currentBytes * 100) / currTotalBytes).toFloat()
-                                b.progTop.post { b.progTop.updateProg(p / 100) }
-                            } catch (_: Exception) {
-                            }
                         }, sizeReceiving)
                         transferGoing = false
-
+                        timer.cancel()
                         if (soc!!.isClosed) {
                             reListen()
                             return@thread

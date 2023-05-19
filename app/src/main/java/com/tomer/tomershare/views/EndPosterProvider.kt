@@ -1,4 +1,4 @@
-package com.tomer.tomershare.utils
+package com.tomer.tomershare.views
 
 import android.content.Context
 import android.graphics.Bitmap

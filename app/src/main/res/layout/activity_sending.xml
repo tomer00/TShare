@@ -40,29 +40,11 @@
 
         </FrameLayout>
 
-        <com.tomer.tomershare.utils.ProgressView
+        <com.tomer.tomershare.views.ProgressView
             android:id="@+id/progTop"
             android:layout_width="match_parent"
             android:layout_height="72dp"
             app:layout_constraintTop_toTopOf="parent" />
-
-        <HorizontalScrollView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="8dp"
-            android:scrollbarSize="0dp"
-            app:layout_constraintBottom_toBottomOf="@id/progTop"
-            app:layout_constraintEnd_toEndOf="@id/progTop"
-            app:layout_constraintStart_toStartOf="@id/progTop"
-            app:layout_constraintTop_toTopOf="@id/progTop">
-
-            <LinearLayout
-                android:id="@+id/rvTop"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal" />
-        </HorizontalScrollView>
-
 
         <View
             android:layout_width="0dp"

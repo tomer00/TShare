@@ -46,7 +46,7 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
     private val repo by lazy { Repo(this.application) }
 
 
-    private val mapFile by lazy { getHashMap() }
+    private val mapFile by lazy { Utils.getHashMap() }
     private val listDrawable by lazy { getDrawables() }
 
     private val diaDelete by lazy { getDelDia() }
@@ -435,56 +435,6 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
 //endregion HELPER FUNCTIONS
 
 //region HASHMAP FOR DRAWABLE FOR DIFFERENT TYPES
-
-    private fun getHashMap(): Map<String, Int> {
-        val map = mutableMapOf<String, Int>()
-        map["jpg"] = 0
-        map["jpeg"] = 0
-        map["png"] = 0
-        map["webp"] = 0
-        map["gif"] = 0
-        map["svg"] = 0
-        map["bmp"] = 0
-        map["ico"] = 0
-        map["tif"] = 0
-        map["psd"] = 0
-
-
-
-        map["mp4"] = 2
-        map["mkv"] = 2
-        map["mov"] = 2
-        map["wmv"] = 2
-        map["flv"] = 2
-        map["avi"] = 2
-        map["webm"] = 2
-
-
-        map["pdf"] = 3
-        map["apk"] = 1
-
-
-        map["zip"] = 5
-        map["rar"] = 5
-        map["tar"] = 5
-        map["tar.gz"] = 5
-        map["tar.xz"] = 5
-        map["7z"] = 5
-
-        map["txt"] = 6
-        map["bat"] = 6
-        map["c"] = 6
-        map["cpp"] = 6
-        map["java"] = 6
-        map["py"] = 6
-        map["js"] = 6
-        map["json"] = 6
-        map["html"] = 6
-        map["php"] = 6
-        map["css"] = 6
-
-        return map
-    }
 
     private fun getDrawables(): List<Drawable> {
         val dr = mutableListOf<Drawable>()

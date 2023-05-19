@@ -6,6 +6,7 @@ import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
+import android.os.CountDownTimer
 import android.os.Environment
 import android.os.SystemClock
 import android.view.View
@@ -17,11 +18,9 @@ import com.tomer.tomershare.databinding.ActivitySendingBinding
 import com.tomer.tomershare.modal.AppModal
 import com.tomer.tomershare.modal.TransferModal
 import com.tomer.tomershare.trans.SendHandler
-import com.tomer.tomershare.utils.EndPosterProvider.Companion.getEndPoster
 import com.tomer.tomershare.utils.PathUtils.Companion.getFilePath
 import com.tomer.tomershare.utils.PathUtils.Companion.getImagePath
 import com.tomer.tomershare.utils.PathUtils.Companion.getVideoPath
-import com.tomer.tomershare.utils.QRProvider
 import com.tomer.tomershare.utils.Repo
 import com.tomer.tomershare.utils.Utils
 import com.tomer.tomershare.utils.Utils.Companion.bytesFromLong
@@ -29,6 +28,9 @@ import com.tomer.tomershare.utils.Utils.Companion.fileName
 import com.tomer.tomershare.utils.Utils.Companion.longFromBytearray
 import com.tomer.tomershare.utils.Utils.Companion.rotate
 import com.tomer.tomershare.utils.ZipUtils.Companion.toZip
+import com.tomer.tomershare.views.EndPosterProvider.Companion.getEndPoster
+import com.tomer.tomershare.views.QRProvider
+import com.tomer.tomershare.widget.WidgetService
 import java.io.File
 import java.net.DatagramSocket
 import java.net.Inet4Address
@@ -69,6 +71,31 @@ class ActivitySending : AppCompatActivity() {
     @Volatile
     private var canSend = false
     private var stopped = false
+    private var isService = false
+
+    private val serIntent by lazy { Intent(this, WidgetService::class.java) }
+
+    private val timer = object : CountDownTimer(400, 400) {
+        override fun onTick(p0: Long) {
+
+        }
+
+        override fun onFinish() {
+            val p = try {
+                ((currentBytes.toDouble()) / currTotalBytes).toFloat()
+            } catch (_: Exception) {
+                0f
+            }
+            b.progTop.post {
+                b.progTop.updateProg(p)
+                if (isService) {
+                    serIntent.putExtra("prog", p)
+                    startService(serIntent)
+                }
+                this.start()
+            }
+        }
+    }
 
     @Volatile
     private var transferGoing = false
@@ -166,6 +193,30 @@ class ActivitySending : AppCompatActivity() {
         }
     }
 
+
+    override fun onResume() {
+        super.onResume()
+        stopService(serIntent)
+        isService = false
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (transferGoing) {
+            startService(serIntent)
+            var index = 0
+            adaptSend.currentList.forEachIndexed { ind, transferModal ->
+                if (transferModal.isTrans) index = ind
+            }
+            val name = adaptSend.currentList[index].fileName
+            serIntent.putExtra("name", name)
+            serIntent.putExtra("ext", name.subSequence(name.lastIndexOf('.') + 1, name.length))
+            startService(serIntent)
+            serIntent.removeExtra("name")
+            isService = true
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         stopped = true
@@ -218,6 +269,14 @@ class ActivitySending : AppCompatActivity() {
     private fun finishUI() {
         runOnUiThread {
             b.apply {
+
+                if (isService) {
+                    serIntent.removeExtra("name")
+                    serIntent.putExtra("done",'a')
+                    startService(serIntent)
+                    isService = false
+                }
+
                 progTop.visibility = View.GONE
 
                 val timeTaken = SystemClock.elapsedRealtime() - time
@@ -328,37 +387,51 @@ class ActivitySending : AppCompatActivity() {
                     adaptSend.notifyItemChanged(index - 1)
                 } catch (_: Exception) {
                 }
-                b.tRv.smoothScrollToPosition(list.size - 1)
+                b.tRv.smoothScrollToPosition(index)
                 b.progTop.updateProg(0f)
             }
 
             // sending the file name length and name bytes itself...
             try {
                 soc!!.sendString(appModal.name)
+                //getting the skip cursor from that file as long....
+                soc!!.getInputStream().read(bytesLong, 0, 8)
             } catch (_: Exception) {
                 closeSockets()
                 finishUI()
                 break
             }
 
-            //getting the skip cursor from that file as long....
-            soc!!.getInputStream().read(bytesLong, 0, 8)
             val cursor: Long = bytesLong.longFromBytearray()
 
             currTotalBytes = appModal.file.length()
-            currentBytes += cursor
+            currentBytes = cursor
+
+            b.root.post {
+                val p = try {
+                    ((currentBytes * 100) / currTotalBytes).toFloat()
+                } catch (_: Exception) {
+                    0f
+                }
+                b.progTop.updateProg(p / 100)
+                if (isService) {
+                    serIntent.putExtra("name", appModal.name)
+                    serIntent.putExtra("ext", appModal.file.extension)
+                    startService(serIntent)
+                    serIntent.removeExtra("name")
+                    serIntent.putExtra("prog", p / 100)
+                    startService(serIntent)
+                }
+            }
+            timer.start()
 
             transferGoing = true
             SendHandler(soc!!, appModal.file, cursor) { long ->
                 finalTotalBytes += long
                 currentBytes += long
-                try {
-                    val p = ((currentBytes * 100) / currTotalBytes).toFloat()
-                    b.progTop.post { b.progTop.updateProg(p / 100) }
-                } catch (_: Exception) {
-                }
             }
             transferGoing = false
+            timer.cancel()
             if (soc!!.isClosed) {
                 reListen()
                 return

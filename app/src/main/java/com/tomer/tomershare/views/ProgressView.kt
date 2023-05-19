@@ -1,5 +1,6 @@
-package com.tomer.tomershare.utils
+package com.tomer.tomershare.views
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -8,10 +9,9 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Point
 import android.graphics.Shader
-import android.os.SystemClock
 import android.util.AttributeSet
 import android.view.View
-import kotlin.concurrent.thread
+import com.tomer.tomershare.utils.Utils.Companion.toPx
 
 class ProgressView : View {
 
@@ -32,7 +32,7 @@ class ProgressView : View {
         bitMap = Bitmap.createBitmap(w / 5, h, Bitmap.Config.ARGB_8888)
         paintArc.shader = shader
         val c = Canvas(bitMap)
-        c.drawRect(0f, 0f, bitMap.width.toFloat(), h.toFloat(), paintArc)
+        c.drawRoundRect(0f, 0f, bitMap.width.toFloat(), h.toFloat()-20.toPx(), 14.toPx(), 14.toPx(), paintArc)
     }
 
 //    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -45,24 +45,30 @@ class ProgressView : View {
 
     //region :::GLOBALS---->>
 
-    private var progAllowed = 0f
     private var prog = 0f
     private var per20 = 0f
     private val dimen = Point(0, 0)
     private lateinit var bitMap: Bitmap
 
-    @Volatile
-    private var isAnimating = false
-
     private val coloLight = Color.parseColor("#D2EDFC")
     private val colEnd = Color.parseColor("#3DDC84")
+
+
+    private val animator = ValueAnimator().apply {
+        duration = 400
+        this.addUpdateListener {
+            prog = animatedValue as Float
+            postInvalidate()
+        }
+    }
+
     //endregion :::GLOBALS---->>
 
     //region :::DRAWING-->>
 
     override fun onDraw(canvas: Canvas) {
         canvas.drawColor(coloLight)
-        canvas.drawBitmap(bitMap, prog - per20, 0f, null)
+        canvas.drawBitmap(bitMap, 10.toPx() + (prog * (width - 20.toPx())) - per20, 10.toPx(), null)
     }
 
     //endregion :::DRAWING-->>
@@ -70,28 +76,15 @@ class ProgressView : View {
     //region COMMUNICATIONS---->>
 
     fun updateProg(progFloat: Float) {
-        this.progAllowed = progFloat
-        if (progAllowed == 0f) prog = 0f
-        if (!isAnimating) {
-            isAnimating = true
-            thread {
-                while (isAnimating) {
-                    SystemClock.sleep(20)
-                    if (prog > dimen.x || prog > progAllowed * dimen.x) {
-                        isAnimating = false
-                        break
-                    } else {
-                        prog += 8f
-                        postInvalidate()
-                    }
-                }
-            }
-        }
+        if (animator.isRunning) animator.end()
+        if (prog == progFloat) return
+        animator.setFloatValues(prog, progFloat)
+        animator.start()
     }
 
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         super.onVisibilityChanged(changedView, visibility)
-        if (visibility == 8) isAnimating = false
+        if (visibility == 8) animator.end()
     }
     //endregion COMMUNICATIONS---->>
 }

@@ -1,7 +1,9 @@
 package com.tomer.tomershare.utils
 
+import android.content.res.Resources
 import android.net.Uri
 import android.os.Build
+import android.util.TypedValue
 import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.animation.Animation
@@ -63,6 +65,12 @@ class Utils {
             return res
         }
 
+        fun Number.toPx() = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            this.toFloat(),
+            Resources.getSystem().displayMetrics
+        )
+
         fun humanReadableSize(apkSize: Long): String {
             return  when {
                 apkSize < 1024 -> String.format("%1$.0f B", apkSize.toDouble())
@@ -70,6 +78,56 @@ class Utils {
                 apkSize < 1024.0.pow(3.0) -> String.format("%1$.1f MB", apkSize / 1024.0.pow(2.0))
                 else -> String.format("%1$.2f GB", apkSize / 1024.0.pow(3.0))
             }
+        }
+
+        fun getHashMap(): Map<String, Int> {
+            val map = mutableMapOf<String, Int>()
+            map["jpg"] = 0
+            map["jpeg"] = 0
+            map["png"] = 0
+            map["webp"] = 0
+            map["gif"] = 0
+            map["svg"] = 0
+            map["bmp"] = 0
+            map["ico"] = 0
+            map["tif"] = 0
+            map["psd"] = 0
+
+
+
+            map["mp4"] = 2
+            map["mkv"] = 2
+            map["mov"] = 2
+            map["wmv"] = 2
+            map["flv"] = 2
+            map["avi"] = 2
+            map["webm"] = 2
+
+
+            map["pdf"] = 3
+            map["apk"] = 1
+
+
+            map["zip"] = 5
+            map["rar"] = 5
+            map["tar"] = 5
+            map["tar.gz"] = 5
+            map["tar.xz"] = 5
+            map["7z"] = 5
+
+            map["txt"] = 6
+            map["bat"] = 6
+            map["c"] = 6
+            map["cpp"] = 6
+            map["java"] = 6
+            map["py"] = 6
+            map["js"] = 6
+            map["json"] = 6
+            map["html"] = 6
+            map["php"] = 6
+            map["css"] = 6
+
+            return map
         }
     }
 }
