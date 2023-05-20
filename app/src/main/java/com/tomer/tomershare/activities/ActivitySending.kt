@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Environment
 import android.os.SystemClock
+import android.provider.Settings
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -169,7 +170,7 @@ class ActivitySending : AppCompatActivity() {
 
         b.imgQRRota.rotate()
         b.imgAvatarReceiver.rotate()
-
+        if (!Settings.canDrawOverlays(this)) reqOverLay()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -272,7 +273,7 @@ class ActivitySending : AppCompatActivity() {
 
                 if (isService) {
                     serIntent.removeExtra("name")
-                    serIntent.putExtra("done",'a')
+                    serIntent.putExtra("done", 'a')
                     startService(serIntent)
                     isService = false
                 }
@@ -451,6 +452,14 @@ class ActivitySending : AppCompatActivity() {
 
 
     //region HELPER FUNCTIONS---->>>
+
+    private fun reqOverLay() {
+        val intent = Intent(
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            Uri.parse("package:${packageName}")
+        )
+        startActivityForResult(intent, 101)
+    }
 
     private fun getIp(): String {
         var str = "NOT"

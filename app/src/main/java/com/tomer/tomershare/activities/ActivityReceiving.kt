@@ -6,11 +6,13 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.AnimationDrawable
 import android.graphics.drawable.ColorDrawable
+import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Environment
 import android.os.SystemClock
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.animation.OvershootInterpolator
@@ -179,6 +181,7 @@ class ActivityReceiving : AppCompatActivity() {
         "Connecting with $phoneName...".also { b.tvSendingName.text = it }
         b.imgAvatarReceiver.rotate()
         openNewConn()
+        if (!Settings.canDrawOverlays(this)) reqOverLay()
     }
 
     override fun onResume() {
@@ -258,6 +261,14 @@ class ActivityReceiving : AppCompatActivity() {
             b.imgNoAnim.visibility = View.GONE
             b.tvNOConn.visibility = View.GONE
         }
+    }
+
+    private fun reqOverLay() {
+        val intent = Intent(
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            Uri.parse("package:${packageName}")
+        )
+        startActivityForResult(intent,101)
     }
 
     //endregion ACTIVITY LIFECYCLES---->>>

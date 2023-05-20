@@ -155,13 +155,13 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
             btRec.setOnClickListener {
                 it.haptic()
                 startActivity(Intent(this@MainActivity, ActivityReceiving::class.java))
-                overridePendingTransition(0, R.anim.exit_d)
+                overridePendingTransition(android.R.anim.fade_in, R.anim.exit_d)
             }
 
             btSend.setOnClickListener {
                 if (Utils.sendQueue.isNotEmpty()) {
                     startActivity(Intent(this@MainActivity, ActivitySending::class.java))
-                    overridePendingTransition(0, R.anim.exit_d)
+                    overridePendingTransition(android.R.anim.fade_in, R.anim.exit_d)
                     if (isGal) {
                         galPos.forEach {
                             adapGal.l[it].visi = false

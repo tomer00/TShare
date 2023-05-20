@@ -48,13 +48,13 @@ class Splash : AppCompatActivity() {
             btRec.setOnClickListener {
                 btRec.haptic()
                 startActivity(Intent(this@Splash, ActivityReceiving::class.java))
-                overridePendingTransition(0, R.anim.exit_rec)
+                overridePendingTransition(android.R.anim.fade_in, R.anim.exit_rec)
                 root.postDelayed({ finish() }, 800)
             }
             btSend.setOnClickListener {
                 btSend.haptic()
                 startActivity(Intent(this@Splash, MainActivity::class.java))
-                overridePendingTransition(0, R.anim.exit_scr)
+                overridePendingTransition(android.R.anim.fade_in, R.anim.exit_scr)
                 btSendBG.animate().apply {
                     scaleX(4f)
                     scaleY(4f)

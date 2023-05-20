@@ -47,18 +47,10 @@ class WidgetView : View {
         color = colorProg
         isAntiAlias = true
     }
-    private val paintTextOuter = Paint().apply {
-        strokeWidth = 12f
-        typeface = ResourcesCompat.getFont(context, R.font.quantico_bold_italic)
-        textSize = 42f
-        this.style = Paint.Style.STROKE
-        color = ContextCompat.getColor(context, R.color.black)
-        isAntiAlias = true
-    }
     private val paintTextInner = TextPaint().apply {
         typeface = ResourcesCompat.getFont(context, R.font.quantico_bold_italic)
         textSize = 42f
-        this.color = colorProg
+        this.color = ContextCompat.getColor(context, R.color.white)
         isAntiAlias = true
     }
     private var prog = 0f //from 0 to 1
@@ -87,10 +79,7 @@ class WidgetView : View {
         canvas.drawRoundRect(-16f, 57.6f, 80 + (prog * 578), 137.6f, 80f, 80f, paintP) // progress
         canvas.drawBitmap(img, bmpRect, canvasRect, null)
 
-        canvas.drawText(line1, 60f, 240f, paintTextOuter)
         canvas.drawText(line1, 60f, 240f, paintTextInner)
-
-        canvas.drawText(line2, 60f, 300f, paintTextOuter)
         canvas.drawText(line2, 60f, 300f, paintTextInner)
 
         canvas.drawBitmap(bmpFileType, 664.5f, 67.6f, null)
