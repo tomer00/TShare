@@ -2,6 +2,7 @@ package com.tomer.tomershare.widget
 
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.graphics.PixelFormat
@@ -16,6 +17,8 @@ import android.view.WindowManager
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.tomer.tomershare.R
+import com.tomer.tomershare.activities.ActivityReceiving
+import com.tomer.tomershare.activities.ActivitySending
 import com.tomer.tomershare.databinding.WidgetLayBinding
 import com.tomer.tomershare.utils.Utils
 import com.tomer.tomershare.utils.Utils.Companion.rotate
@@ -29,6 +32,7 @@ class WidgetService : Service() {
     private var canMove = false
     private var isDown = false
     private var isLeft = false
+    private var isSend = false
 
     private var initial = Point(0, 0)
     private var touch = PointF(0f, 0f)
@@ -83,6 +87,7 @@ class WidgetService : Service() {
             return START_NOT_STICKY
         }
 
+        isSend = intent.getBooleanExtra("send", false)
         val imgParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -119,10 +124,16 @@ class WidgetService : Service() {
                     }
 
                 } else if (motionEvent.action == MotionEvent.ACTION_UP) {
-                    if (!canMove) { // click conditoin here
+                    if (!canMove) { // click condition here
+                        if (b.imgRot.paddingBottom == 0) {
+                            val pint = if (isSend) Intent(this@WidgetService, ActivitySending::class.java)
+                            else Intent(this@WidgetService, ActivityReceiving::class.java)
+                            val p = PendingIntent.getActivity(this@WidgetService, 100, pint, PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE)
+                            p.send()
+                            return@setOnTouchListener true
+                        }
                         if (b.mainCard.visibility != View.VISIBLE) b.mainCard.visibility = View.VISIBLE
                         else b.mainCard.visibility = View.GONE
-
                     }
                     val valueAnimator: ValueAnimator
                     if (motionEvent.rawX < windowManager.defaultDisplay.width / 2) {

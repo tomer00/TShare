@@ -1,6 +1,7 @@
 package com.tomer.tomershare.activities
 
 import android.Manifest
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -12,6 +13,7 @@ import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Environment
 import android.os.SystemClock
+import android.provider.MediaStore
 import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
@@ -154,7 +156,7 @@ class ActivityReceiving : AppCompatActivity() {
             avatar = mod.icon
         }
 
-        repo.getAllNetwork().forEach { mod ->
+        repo.getAllNetwork().reversed().forEach { mod ->
             val view = layoutInflater.inflate(R.layout.row_net, b.rvTop, false)
             val row = RowNetBinding.bind(view)
             val netDr = if (mod.isWifi) R.drawable.ic_wifi
@@ -192,8 +194,10 @@ class ActivityReceiving : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        if (transferGoing) {
+        if (transferGoing && !isFinishing) {
+            serIntent.putExtra("send", false)
             startService(serIntent)
+            serIntent.removeExtra("send")
             val name = adaptSend.currentList.last().fileName
             serIntent.putExtra("name", name)
             serIntent.putExtra("ext", name.subSequence(name.lastIndexOf('.') + 1, name.length))
@@ -213,13 +217,14 @@ class ActivityReceiving : AppCompatActivity() {
     private fun onFinish() {
         if (!stopped) {
             runOnUiThread {
+                b.root.keepScreenOn = false
                 b.apply {
                     val timeTaken = SystemClock.elapsedRealtime() - time
                     progTop.visibility = View.GONE
 
                     if (isService) {
                         serIntent.removeExtra("name")
-                        serIntent.putExtra("done",'a')
+                        serIntent.putExtra("done", true)
                         startService(serIntent)
                         isService = false
                     }
@@ -268,7 +273,7 @@ class ActivityReceiving : AppCompatActivity() {
             Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
             Uri.parse("package:${packageName}")
         )
-        startActivityForResult(intent,101)
+        startActivityForResult(intent, 101)
     }
 
     //endregion ACTIVITY LIFECYCLES---->>>
@@ -424,8 +429,11 @@ class ActivityReceiving : AppCompatActivity() {
                                         fileFol.delete()
                                     }
                                 }
+                            } else {
+                                runOnUiThread {
+                                    addContentValue(f)
+                                }
                             }
-
                         }
                     } catch (_: Exception) {
                         reListen()
@@ -452,6 +460,23 @@ class ActivityReceiving : AppCompatActivity() {
         }
     }
 
+    private fun addContentValue(file: File) {
+        if (Utils.getHashMap()[file.extension] == 0) {
+            val cn = ContentValues().apply {
+                put(MediaStore.Images.Media.MIME_TYPE, "image/${file.extension}")
+                put(MediaStore.Images.Media.DISPLAY_NAME, file.name)
+                put(MediaStore.Images.Media.DATA, file.absolutePath)
+            }
+            contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cn)
+        } else if (Utils.getHashMap()[file.extension] == 2) {
+            val cn = ContentValues().apply {
+                put(MediaStore.Video.Media.MIME_TYPE, "video/${file.extension}")
+                put(MediaStore.Video.Media.DISPLAY_NAME, file.name)
+                put(MediaStore.Video.Media.DATA, file.absolutePath)
+            }
+            contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, cn)
+        }
+    }
 
     private fun closeSockets() {
         try {
