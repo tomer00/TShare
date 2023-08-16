@@ -204,7 +204,7 @@ class ActivitySending : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         if (transferGoing && !isFinishing) {
-            serIntent.putExtra("send",true)
+            serIntent.putExtra("send", true)
             startService(serIntent)
             serIntent.removeExtra("send")
             var index = 0
@@ -515,17 +515,17 @@ class ActivitySending : AppCompatActivity() {
         when (intent.type.toString()) {
             "video/*" -> {
                 val path = uri.getVideoPath(applicationContext)
-                if (path.first != "null") Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+                if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
                 else handelTempFiles(uri)
             }
             "image/*" -> {
                 val path = uri.getImagePath(applicationContext)
-                if (path.first != "null") Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+                if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
                 else handelTempFiles(uri)
             }
             "application/*" -> {
                 val path = uri.getFilePath(applicationContext)
-                if (path.first != "null") Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+                if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
                 else handelTempFiles(uri)
             }
             "text/*", "null" -> {
@@ -533,13 +533,13 @@ class ActivitySending : AppCompatActivity() {
             }
             else -> {
                 var path = uri.getFilePath(applicationContext)
-                if (path.first != "null") Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+                if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
                 else {
                     path = uri.getImagePath(applicationContext)
-                    if (path.first != "null") Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+                    if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
                     else {
                         path = uri.getVideoPath(applicationContext)
-                        if (path.first != "null") Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+                        if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
                         else {
                             handelTempFiles(uri)
                         }
