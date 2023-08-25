@@ -4,8 +4,7 @@
 ![Logo](https://github.com/tomer00/TShare/assets/68748487/4b57f05a-cc5f-4c32-96b0-54e0a2114a34)
 
 
-
-TShare is an Android app with Desktop Client that allows you to share any file with other devices using a Wi-Fi network. With Tshare, you can quickly and easily share photos, videos, documents, and other types of files with friends, family, or colleagues without using a USB cable, email, or other methods.
+TShare is an Android app with a Desktop Client that allows you to share any file with other devices using a Wi-Fi network. With Tshare, you can quickly and easily share photos, videos, documents, and other types of files with friends, family, or colleagues without using a USB cable, email, or other methods.
 
 Making it super simple and fast for your ecosystem to share files on the go between various devices like other Android Phones or any Java-running Machine.
 
@@ -25,31 +24,34 @@ Making it super simple and fast for your ecosystem to share files on the go betw
 
 ## File Types 🗃
 
-<img src="https://github.com/tomer00/TShare/assets/68748487/55fa655b-6c11-4c00-9d55-9f77c1d7ce46" alt="File Types..." height="440px">
+<img align="right" src="https://github.com/tomer00/TShare/assets/68748487/55fa655b-6c11-4c00-9d55-9f77c1d7ce46" alt="File Types..." height="440px">
 
 You can select your files and folders easily using these methods
-1. Files or folders from *files view*.
-2. Images or Videos from *gallery view*.
-3. Installed apps from *apps view*.
-4. Select file from *anywhere* of your device and select **Tshare** from share menu.
+- Files or folders from *files view*.
+- Images or Videos from *gallery view*.
+- Installed apps from *apps view*.
+- Select a file from *anywhere* on your device and select **Tshare** from share menu.
 
+
+<img height=60px/>
 
 ## Blazing Speed ⚡
-<img src="https://github.com/tomer00/TShare/assets/68748487/745b2c3f-d4d3-4426-8d11-6ae36b66254b" alt="Speed Test..." height="440px">
+<img align="right" src="https://github.com/tomer00/TShare/assets/68748487/745b2c3f-d4d3-4426-8d11-6ae36b66254b" alt="Speed Test..." height="440px">
 
-1. **Instant Sharing:** Experience near-instant transfers for even large files.
-2. **Zero Wait Times:** Say goodbye to waiting for files to transfer. This app's speed ensures that your files are shared within the blink of an eye.
-3. **Quick Setup and Connection:** With an easy-to-use interface, our app ensures that you can set up connections swiftly and start sharing files with minimal setup time.
+- **Instant Sharing:** Experience near-instant transfers for even large files.
+- **Zero Wait Times:** Say goodbye to waiting for files to transfer. This app's speed ensures that your files are shared within the blink of an eye.
+- **Quick Setup and Connection:** With an easy-to-use interface, our app ensures that you can set up connections swiftly and start sharing files with minimal setup time.
 
-4. **Seamless Device Integration:** Our app seamlessly integrates with your devices, enabling you to quickly share files between smartphones, tablets, laptops, and more.
+- **Seamless Device Integration:** Our app seamlessly integrates with your devices, enabling you to quickly share files between smartphones, tablets, laptops, and more.
 
+<img height=160px/>
 
 ## Getting Started 🚀
 
 To use Tshare, follow these simple steps:
 
 1. Download and install the app from the release section.
-2. Make sure that both devices are on the same wifi network before sharing.
+2. Make sure that both devices are on the same Wi-Fi network before sharing.
 3. Open the app and select the file you want to share.
 4. Tap the "**Share**" button and a *QR code* will appear.
 5. The recipient device will scan a QR code to accept the transfer.
@@ -75,3 +77,5 @@ To use Tshare, follow these simple steps:
   java -jar TShare.jar
 ```
     
+   ---
+<div align="center">Developed with ❤️ by <a href="https://linkedin.com/in/tomer00" target="_blank">Himanshu Tomer</a></div>
