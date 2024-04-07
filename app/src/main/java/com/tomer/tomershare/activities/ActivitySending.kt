@@ -28,7 +28,6 @@ import com.tomer.tomershare.utils.Utils.Companion.bytesFromLong
 import com.tomer.tomershare.utils.Utils.Companion.fileName
 import com.tomer.tomershare.utils.Utils.Companion.longFromBytearray
 import com.tomer.tomershare.utils.Utils.Companion.rotate
-import com.tomer.tomershare.utils.ZipUtils.Companion.toZip
 import com.tomer.tomershare.views.EndPosterProvider.Companion.getEndPoster
 import com.tomer.tomershare.views.QRProvider
 import com.tomer.tomershare.widget.WidgetService
@@ -140,16 +139,18 @@ class ActivitySending : AppCompatActivity() {
             }
         }
 
-        //check if there is any folder in Selected files...
         thread {
-            val tempFol = File(cacheDir, "temps")
-            if (!tempFol.exists()) tempFol.mkdirs()
-            Utils.sendQueue.forEach { mod ->
-                if (mod.file.isDirectory) {
-                    mod.file = mod.file.toZip(tempFol)
-                    mod.name = mod.name + ".fol"
+            val folList = mutableListOf<File>()
+            val i = Utils.sendQueue.iterator()
+            while (i.hasNext()) {
+                val m = i.next();
+                if (m.file.isDirectory) {
+                    folList.add(m.file)
+                    i.remove()
                 }
             }
+
+            setAllFilesInFolderToQueue(folList)
             canSend = true
         }
 
@@ -454,6 +455,26 @@ class ActivitySending : AppCompatActivity() {
 
 
     //region HELPER FUNCTIONS---->>>
+    private val drDef by lazy { ContextCompat.getDrawable(this, R.drawable.logo) }
+
+    private fun setAllFilesInFolderToQueue(list: List<File>) {
+        for (f in list) recAdd("", f)
+    }
+
+    private fun recAdd(par: String, file: File) {
+        if (file.isDirectory) {
+            val files = file.listFiles()
+            for (f in files!!) {
+                recAdd("$par/${file.name}", f)
+            }
+        } else {
+            Utils.sendQueue.offer(
+                AppModal(
+                    "...fol$par/${file.name}", "0", file, drDef!!
+                )
+            )
+        }
+    }
 
     private fun reqOverLay() {
         val intent = Intent(

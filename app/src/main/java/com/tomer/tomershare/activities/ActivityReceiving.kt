@@ -40,7 +40,6 @@ import com.tomer.tomershare.utils.Utils
 import com.tomer.tomershare.utils.Utils.Companion.bytesFromLong
 import com.tomer.tomershare.utils.Utils.Companion.longFromBytearray
 import com.tomer.tomershare.utils.Utils.Companion.rotate
-import com.tomer.tomershare.utils.ZipUtils.Companion.unZipFile
 import com.tomer.tomershare.views.EndPosterProvider.Companion.getEndPoster
 import com.tomer.tomershare.widget.WidgetService
 import java.io.File
@@ -356,7 +355,7 @@ class ActivityReceiving : AppCompatActivity() {
                         soc!!.getInputStream().read(bytesLong, 0, 8)
                         val size: Long = bytesLong.longFromBytearray()
 
-                        if (size > 260) {
+                        if (size > 1200) {
                             soc!!.close()
                             reListen()
                             break
@@ -375,8 +374,12 @@ class ActivityReceiving : AppCompatActivity() {
 
                         currentBytes = 0
                         currTotalBytes = 0
-                        val f = File(parentFolder, fileReceiving)
 
+                        val f = if (fileReceiving.startsWith("...fol")) {
+                            File(parentFolder.absolutePath + fileReceiving.substring(6)).also {
+                                if (it.parentFile?.exists() == false) it.parentFile?.mkdirs()
+                            }
+                        } else File(parentFolder, fileReceiving)
 
                         // sending cursor for this file
                         if (f.exists()) {
@@ -420,20 +423,8 @@ class ActivityReceiving : AppCompatActivity() {
                         if (soc!!.isClosed) {
                             reListen()
                             return@thread
-                        } else {
-                            if (f.extension == "fol") {
-                                runOnUiThread {
-                                    thread {
-                                        val fileFol = File(parentFolder, fileReceiving)
-                                        fileFol.unZipFile()
-                                        fileFol.delete()
-                                    }
-                                }
-                            } else {
-                                runOnUiThread {
-                                    addContentValue(f)
-                                }
-                            }
+                        } else runOnUiThread {
+                            addContentValue(f)
                         }
                     } catch (_: Exception) {
                         reListen()

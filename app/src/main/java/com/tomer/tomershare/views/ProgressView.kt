@@ -35,12 +35,6 @@ class ProgressView : View {
         c.drawRoundRect(0f, 0f, bitMap.width.toFloat(), h.toFloat()-20.toPx(), 14.toPx(), 14.toPx(), paintArc)
     }
 
-//    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-//        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-//        Log.d("TAG--", "onMeasure: widthMeasureSpec = $widthMeasureSpec, heightMeasureSpec = $heightMeasureSpec")
-//        setMeasuredDimension(MeasureSpec.getMode(widthMeasureSpec),120)
-//    }
-
     //endregion CONSTRUCTOR---->>
 
     //region :::GLOBALS---->>
@@ -80,11 +74,6 @@ class ProgressView : View {
         if (prog == progFloat) return
         animator.setFloatValues(prog, progFloat)
         animator.start()
-    }
-
-    override fun onVisibilityChanged(changedView: View, visibility: Int) {
-        super.onVisibilityChanged(changedView, visibility)
-        if (visibility == 8) animator.end()
     }
     //endregion COMMUNICATIONS---->>
 }
