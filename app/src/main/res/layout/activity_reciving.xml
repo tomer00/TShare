@@ -76,14 +76,55 @@
             app:layout_constraintTop_toTopOf="@id/finishCard" />
 
         <!--        details showing of current metric   -->
-        <androidx.constraintlayout.widget.ConstraintLayout
+        <LinearLayout
+            android:visibility="gone"
+            android:orientation="horizontal"
+            android:id="@+id/layMetrics"
             android:layout_width="match_parent"
+            android:layout_marginHorizontal="20dp"
+            android:gravity="center"
+            android:alpha="0.44"
             android:layout_height="wrap_content"
             app:layout_constraintBottom_toBottomOf="@id/progTop"
-            app:layout_constraintTop_toTopOf="@id/progTop">
+            app:layout_constraintTop_toTopOf="@id/progTop"
+            android:baselineAligned="false">
+
+            <LinearLayout
+                android:layout_weight="1"
+                android:gravity="center"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content">
+                <TextView
+                    android:id="@+id/tvSpeed"
+                    android:layout_width="wrap_content"
+                    android:textColor="@color/black"
+                    android:textSize="20sp"
+                    android:gravity="center"
+                    android:drawablePadding="8dp"
+                    android:fontFamily="@font/quantico_bold_italic"
+                    android:layout_height="wrap_content"
+                    app:drawableStartCompat="@drawable/ic_speed" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_weight="1"
+                android:gravity="center"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content">
+                <TextView
+                    android:id="@+id/tvTimer"
+                    android:layout_width="wrap_content"
+                    android:textColor="@color/black"
+                    android:textSize="20sp"
+                    android:gravity="center"
+                    android:drawablePadding="8dp"
+                    android:fontFamily="@font/quantico_bold_italic"
+                    android:layout_height="wrap_content"
+                    app:drawableStartCompat="@drawable/ic_timer" />
+            </LinearLayout>
 
 
-        </androidx.constraintlayout.widget.ConstraintLayout>
+        </LinearLayout>
 
 
         <Space
