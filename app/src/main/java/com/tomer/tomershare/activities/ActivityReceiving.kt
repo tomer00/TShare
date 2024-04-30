@@ -15,6 +15,7 @@ import android.os.Environment
 import android.os.SystemClock
 import android.provider.MediaStore
 import android.provider.Settings
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.animation.OvershootInterpolator
@@ -22,6 +23,8 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import com.journeyapps.barcodescanner.BarcodeCallback
 import com.journeyapps.barcodescanner.CompoundBarcodeView
 import com.tomer.tomershare.R
@@ -53,10 +56,8 @@ class ActivityReceiving : AppCompatActivity() {
 
     //region GLOBALS--->>>
     private val b by lazy { ActivityRecivingBinding.inflate(layoutInflater) }
-    private val adaptSend by lazy { AdaptMsg(this, this::closeCurrFile) }
+    private val adaptSend by lazy { AdaptMsg(this, this::onClickRvItem) }
 
-
-    private val networkList by lazy { mutableListOf<ModalNetwork>() }
     private val repo by lazy { RepoPref(applicationContext) }
     private lateinit var barcodeView: CompoundBarcodeView
     private val callback by lazy { callBack() }
@@ -124,6 +125,7 @@ class ActivityReceiving : AppCompatActivity() {
         avatar = mod.icon
         phoneName = mod.name
         openNewConn()
+        repo.saveLast(mod)
     }
 
     private val longcliRvtop = View.OnLongClickListener { v ->
@@ -133,6 +135,36 @@ class ActivityReceiving : AppCompatActivity() {
         repo.setAllNetwork(list)
         b.rvTop.removeView(v)
         return@OnLongClickListener true
+    }
+
+    @Volatile
+    private var isMetricThread = false
+
+    @Volatile
+    private var lastTotalBytes = 0L
+    private val metricThread = Thread {
+        while (isMetricThread) {
+            SystemClock.sleep(1000)
+            val sentIn100 = finalTotalBytes - lastTotalBytes
+            lastTotalBytes = finalTotalBytes
+            val speed = Utils.humanReadableSize(sentIn100)
+            val timeRerm = try {
+                (currTotalBytes - currentBytes).div(sentIn100)
+            } catch (e: Exception) {
+                -1
+            }
+            runOnUiThread {
+                "$speed/s".also { b.tvSpeed.text = it }
+                b.tvTimer.text = timerString(timeRerm)
+            }
+        }
+    }
+
+    private fun timerString(secs: Long): String {
+        return if (secs == -1L || secs > 12000) "..-.."
+        else if (secs <= 59) "$secs Sec"
+        else if (secs >= 3600) "${secs.div(3600)} H ${secs.mod(3600).div(60)} M"
+        else "${secs.div(60)} M ${secs.mod(60)} S"
     }
 
     //endregion GLOBALS--->>>
@@ -214,6 +246,7 @@ class ActivityReceiving : AppCompatActivity() {
 
     // Finish ui
     private fun onFinish() {
+        isMetricThread = false
         if (!stopped) {
             runOnUiThread {
                 b.root.keepScreenOn = false
@@ -238,7 +271,9 @@ class ActivityReceiving : AppCompatActivity() {
                     finishView.visibility = View.VISIBLE
 
                     val tme = (timeTaken / 1000).toInt()
-                    "Received in just ${tme / 60} min and ${tme % 60} seconds...".also { tvSendingName.text = it }
+                    val str = if (tme < 60) "Received in just $tme seconds..."
+                    else "Received in just ${tme / 60} min and ${tme % 60} seconds..."
+                    tvSendingName.text = str
                     imgAvatarReceiver.setImageDrawable(ContextCompat.getDrawable(this@ActivityReceiving, R.drawable.ic_clock))
                     val li = mutableListOf<TransferModal>()
                     adaptSend.currentList.forEach { mod ->
@@ -264,7 +299,11 @@ class ActivityReceiving : AppCompatActivity() {
             b.rvTop.visibility = View.GONE
             b.imgNoAnim.visibility = View.GONE
             b.tvNOConn.visibility = View.GONE
+
+            b.layMetrics.visibility = View.VISIBLE
         }
+        isMetricThread = true
+        metricThread.start()
     }
 
     private fun reqOverLay() {
@@ -278,9 +317,27 @@ class ActivityReceiving : AppCompatActivity() {
     //endregion ACTIVITY LIFECYCLES---->>>
 
     //region RECEIVING FILES---->>
-    private fun closeCurrFile() {
-        if (!transferGoing) return
-        soc!!.close()
+    private fun onClickRvItem(isClose: Boolean, pos: Int) {
+        if (isClose) {
+            if (!transferGoing) return
+            soc!!.close()
+            return
+        }
+
+//        Log.d("TAG--", "onClickRvItem: $pos")
+//
+//        val folder = File(parentFolder,"")
+//
+//        val int = Intent(Intent.ACTION_VIEW).apply {
+//            setDataAndType(FileProvider.getUriForFile(this@ActivityReceiving, "com.tomer.tomershare.provider", folder),"*/*")
+//            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+//        }
+//        try {
+//            startActivity(int)
+//        }catch (e:Exception){
+//            e.printStackTrace()
+//            Log.e("TAG--", "onClickRvItem: ",e)
+//        }
     }
 
 
@@ -506,7 +563,6 @@ class ActivityReceiving : AppCompatActivity() {
         barcodeView.pause()
         qrDia.dismiss()
         val sts = CipherUtils.performString(result?.text.toString()).split(Pattern.compile("::"), 3)
-//        val sts = result?.text.toString().split(Pattern.compile("::"), 3)
         if (sts.size != 3) return@BarcodeCallback
         if (sts[1] == "NOT") {
             b.imgNoAnim.visibility = View.VISIBLE
@@ -525,10 +581,16 @@ class ActivityReceiving : AppCompatActivity() {
         val man = getSystemService(Context.WIFI_SERVICE) as WifiManager
         val modalNetwork = ModalNetwork(add, name, man.isWifiEnabled, icon)
         var found = false
-        networkList.addAll(repo.getAllNetwork())
-        networkList.forEach {
-            if (it.address == modalNetwork.address) found = true
+        val networkList = repo.getAllNetwork().toMutableList()
+
+        val itr = networkList.iterator()
+        while (itr.hasNext()) {
+            val mod = itr.next()
+            if (mod.address == modalNetwork.address) found = true
+            if (mod.name == modalNetwork.name)
+                itr.remove()
         }
+
         Utils.ADDRESS = modalNetwork.address
         openNewConn()
         repo.saveLast(modalNetwork)

@@ -12,12 +12,12 @@ import com.tomer.tomershare.R
 import com.tomer.tomershare.databinding.TransRowBinding
 import com.tomer.tomershare.modal.TransferModal
 
-class AdaptMsg(private val context: Context, private val onCancel: () -> Unit) : ListAdapter<TransferModal, AdaptMsg.MsgHolder>(MsgDIffUtils()) {
+class AdaptMsg(private val context: Context, private val onClick: (Boolean,Int) -> Unit) : ListAdapter<TransferModal, AdaptMsg.MsgHolder>(MsgDIffUtils()) {
 
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MsgHolder {
         val v = LayoutInflater.from(parent.context).inflate(R.layout.trans_row, parent, false)
-        return MsgHolder(TransRowBinding.bind(v), onCancel)
+        return MsgHolder(TransRowBinding.bind(v), onClick)
     }
 
     override fun onBindViewHolder(holder: MsgHolder, position: Int) {
@@ -40,10 +40,13 @@ class AdaptMsg(private val context: Context, private val onCancel: () -> Unit) :
         }
     }
 
-    inner class MsgHolder(val b: TransRowBinding, private val onCancel: () -> Unit) : RecyclerView.ViewHolder(b.root) {
+    inner class MsgHolder(val b: TransRowBinding, private val onClick: (Boolean,Int) -> Unit) : RecyclerView.ViewHolder(b.root) {
         init {
+            b.fileName.setOnClickListener {
+                onClick(false,adapterPosition)
+            }
             b.clickHandler.setOnClickListener {
-                onCancel()
+                onClick(true,adapterPosition)
             }
         }
     }

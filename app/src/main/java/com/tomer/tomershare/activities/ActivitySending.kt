@@ -13,6 +13,7 @@ import android.provider.Settings
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import com.tomer.tomershare.R
 import com.tomer.tomershare.adap.AdaptMsg
 import com.tomer.tomershare.databinding.ActivitySendingBinding
@@ -47,7 +48,7 @@ class ActivitySending : AppCompatActivity() {
 
     //region GLOBALS---->>>
     private val b by lazy { ActivitySendingBinding.inflate(layoutInflater) }
-    private val adaptSend by lazy { AdaptMsg(this, this::closeCurrFile) }
+    private val adaptSend by lazy { AdaptMsg(this, this::onClickRvItem) }
     private val list = mutableListOf<TransferModal>()
 
     private var soc: Socket? = null
@@ -111,6 +112,37 @@ class ActivitySending : AppCompatActivity() {
         this.getOutputStream().write(strata.size.toLong().bytesFromLong())
         this.getOutputStream().write(strata)
         this.getOutputStream().flush()
+    }
+
+
+    @Volatile
+    private var isMetricThread = false
+
+    @Volatile
+    private var lastTotalBytes = 0L
+    private val metricThread = Thread {
+        while (isMetricThread) {
+            SystemClock.sleep(1000)
+            val sentIn100 = finalTotalBytes - lastTotalBytes
+            lastTotalBytes = finalTotalBytes
+            val speed = Utils.humanReadableSize(sentIn100)
+            val timeRerm = try {
+                (currTotalBytes - currentBytes).div(sentIn100)
+            } catch (e: Exception) {
+                -1
+            }
+            runOnUiThread {
+                "$speed/s".also { b.tvSpeed.text = it }
+                b.tvTimer.text = timerString(timeRerm)
+            }
+        }
+    }
+
+    private fun timerString(secs: Long): String {
+        return if (secs == -1L || secs > 12000) "..-.."
+        else if (secs <= 59) "$secs Sec"
+        else if (secs >= 3600) "${secs.div(3600)} H ${secs.mod(3600).div(60)} M"
+        else "${secs.div(60)} M ${secs.mod(60)} S"
     }
 
 
@@ -267,10 +299,15 @@ class ActivitySending : AppCompatActivity() {
                 setImageDrawable(ContextCompat.getDrawable(this@ActivitySending, Repo.getMid(avatar)))
             }
             "Sending to $phoneName".also { b.tvSendingName.text = it }
+
+            b.layMetrics.visibility = View.VISIBLE
         }
+        isMetricThread = true
+        metricThread.start()
     }
 
     private fun finishUI() {
+        isMetricThread = false
         runOnUiThread {
             b.apply {
                 root.keepScreenOn = false
@@ -294,7 +331,8 @@ class ActivitySending : AppCompatActivity() {
                 finishView.visibility = View.VISIBLE
 
                 val tme = (timeTaken / 1000).toInt()
-                "Sent in just ${tme / 60} min and ${tme % 60} seconds...".also { tvSendingName.text = it }
+                if (tme < 60) "Sent in just $tme seconds...".also { tvSendingName.text = it }
+                else "Sent in just ${tme / 60} min and ${tme % 60} seconds...".also { tvSendingName.text = it }
                 imgAvatarReceiver.setImageDrawable(ContextCompat.getDrawable(this@ActivitySending, R.drawable.ic_clock))
                 val li = mutableListOf<TransferModal>()
                 adaptSend.currentList.forEach { mod ->
@@ -325,9 +363,24 @@ class ActivitySending : AppCompatActivity() {
         }
     }
 
-    private fun closeCurrFile() {
-        if (!transferGoing) return
-        soc!!.close()
+    private fun onClickRvItem(isClose: Boolean, pos: Int) {
+        if (isClose) {
+            if (!transferGoing) return
+            soc!!.close()
+            return
+        }
+
+//        val folder = File("")
+//
+//        val int = Intent(Intent.ACTION_VIEW).apply {
+//            setDataAndType(folder.toUri(),"resource/folder")
+//            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+//        }
+//        try {
+//            startActivity(int)
+//        }catch (e:Exception){
+//            e.printStackTrace()
+//        }
     }
 
     private fun reListen() {
@@ -539,19 +592,23 @@ class ActivitySending : AppCompatActivity() {
                 if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
                 else handelTempFiles(uri)
             }
+
             "image/*" -> {
                 val path = uri.getImagePath(applicationContext)
                 if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
                 else handelTempFiles(uri)
             }
+
             "application/*" -> {
                 val path = uri.getFilePath(applicationContext)
                 if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
                 else handelTempFiles(uri)
             }
+
             "text/*", "null" -> {
                 finish()
             }
+
             else -> {
                 var path = uri.getFilePath(applicationContext)
                 if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
