@@ -6,34 +6,46 @@ import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
 import android.net.Uri
+import android.os.PersistableBundle
 import com.tomer.tomershare.modal.ModalNetwork
 
 class ShotCutCreator {
     companion object {
-        fun Context.createShotCut(modalNetwork: ModalNetwork, newList: MutableList<ModalNetwork>) {
+        fun Context.createShotCut(modalNetwork: ModalNetwork) {
             val man = this.getSystemService(ShortcutManager::class.java) as ShortcutManager
 
-            var info :ShortcutInfo
+            val list = man.dynamicShortcuts
+            for (i in list)
+                if (i.id == modalNetwork.name)
+                    return
 
-            val list = mutableListOf<ShortcutInfo>()
-            if (newList.size == 4) newList.removeAt(0)
-            newList.add(ModalNetwork(modalNetwork.address, modalNetwork.name, modalNetwork.isWifi, modalNetwork.icon))
-
-            newList.forEach {
-                info = ShortcutInfo.Builder(this, it.name)
-                    .setShortLabel(it.name)
-                    .setLongLabel("Receive ${it.name}")
-                    .setIcon(Icon.createWithResource(this, Repo.getMid(it.icon)))
-                    .setIntent(getIntent(it))
+            val newList = mutableListOf<ShortcutInfo>()
+            if (list.size == 4) list.removeAt(0)
+            newList.add(
+                ShortcutInfo.Builder(this, modalNetwork.name)
+                    .setShortLabel(modalNetwork.name)
+                    .setLongLabel("Receive ${modalNetwork.name}")
+                    .setIcon(Icon.createWithResource(this, Repo.getMid(modalNetwork.icon)))
+                    .setIntent(getIntent(modalNetwork))
                     .build()
-                list.add(info)
+            )
+            list.forEach {
+                val name = it.id
+                val icon = it.intent?.getStringExtra("icon").orEmpty()
+                newList.add(
+                    ShortcutInfo.Builder(this, name)
+                        .setShortLabel(name)
+                        .setLongLabel("Receive $name")
+                        .setIcon(Icon.createWithResource(this, Repo.getMid(icon)))
+                        .setIntent(getIntent(modalNetwork))
+                        .build()
+                )
             }
-            man.dynamicShortcuts = list
+            man.dynamicShortcuts = newList
         }
 
         private fun getIntent(ip: ModalNetwork): Intent {
             return Intent(Intent.ACTION_VIEW, Uri.parse("rec://new")).apply {
-                putExtra("ip", ip.address)
                 putExtra("name", ip.name)
                 putExtra("icon", ip.icon)
             }

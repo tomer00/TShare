@@ -291,6 +291,10 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
         delFile = adapFiles.currentList[position].file
         if (delFile.isDirectory) {
             if (indic.visibility == View.GONE) {
+                if (delFile.listFiles().isNullOrEmpty()) {
+                    Toast.makeText(this, "\uD83D\uDCC2 Empty Folder...", Toast.LENGTH_SHORT).show()
+                    return
+                }
                 Utils.sendQueue.offer(AppModal(delFile.name, "0", delFile, drDef!!))
                 changeFile(position, 0)
                 indic.visibility = View.VISIBLE

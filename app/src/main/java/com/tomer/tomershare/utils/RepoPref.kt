@@ -47,30 +47,4 @@ class RepoPref(private val context: Context) {
             str.deleteCharAt(str.length - 1)
         pref.edit().putString("data", str.toString()).apply()
     }
-
-    fun saveShotCuts(list: List<ModalNetwork>) {
-        val str = StringBuilder()
-        list.forEach {
-            str.append("${it.address},,${it.name},,${it.isWifi},,${it.icon}")
-            str.append("<")
-        }
-        if (str.isNotEmpty())
-            str.deleteCharAt(str.length - 1)
-        pref.edit().putString("shot", str.toString()).apply()
-    }
-
-    fun getShortcut(): List<ModalNetwork> {
-        val list = mutableListOf<ModalNetwork>()
-        val str = pref.getString("shot", "").toString()
-
-        val sts = Pattern.compile("<").split(str)
-
-        sts.forEach {
-            if (it.isNotEmpty()) {
-                val s = Pattern.compile(",,").split(it.toString(), 4)
-                list.add(ModalNetwork(s[0], s[1], s[2].toBoolean(), s[3]))
-            }
-        }
-        return list
-    }
 }

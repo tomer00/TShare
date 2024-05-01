@@ -15,7 +15,6 @@ import android.os.Environment
 import android.os.SystemClock
 import android.provider.MediaStore
 import android.provider.Settings
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.animation.OvershootInterpolator
@@ -23,8 +22,6 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
-import androidx.core.net.toUri
 import com.journeyapps.barcodescanner.BarcodeCallback
 import com.journeyapps.barcodescanner.CompoundBarcodeView
 import com.tomer.tomershare.R
@@ -176,10 +173,19 @@ class ActivityReceiving : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(b.root)
 
-        if (intent.getStringExtra("ip").toString() != "null") {
+        val allList = repo.getAllNetwork()
+        if (intent.getStringExtra("name").toString() != "null") {
             Utils.ADDRESS = intent.getStringExtra("ip").toString()
-            phoneName = intent.getStringExtra("name").toString()
+            val name = intent.getStringExtra("name").toString()
             avatar = intent.getStringExtra("icon").toString()
+            for (m in allList) {
+                if (m.name == name) {
+                    Utils.ADDRESS = m.address
+                    phoneName = m.name
+                    avatar = m.icon
+                    break
+                }
+            }
         } else {
             val mod = repo.getLast()
             Utils.ADDRESS = mod.address
@@ -187,7 +193,8 @@ class ActivityReceiving : AppCompatActivity() {
             avatar = mod.icon
         }
 
-        repo.getAllNetwork().reversed().forEach { mod ->
+
+        allList.reversed().forEach { mod ->
             val view = layoutInflater.inflate(R.layout.row_net, b.rvTop, false)
             val row = RowNetBinding.bind(view)
             val netDr = if (mod.isWifi) R.drawable.ic_wifi
@@ -308,8 +315,7 @@ class ActivityReceiving : AppCompatActivity() {
 
     private fun reqOverLay() {
         val intent = Intent(
-            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-            Uri.parse("package:${packageName}")
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${packageName}")
         )
         startActivityForResult(intent, 101)
     }
@@ -568,8 +574,7 @@ class ActivityReceiving : AppCompatActivity() {
             b.imgNoAnim.visibility = View.VISIBLE
             b.tvNOConn.visibility = View.VISIBLE
             val a = b.imgNoAnim.drawable as AnimationDrawable
-            if (!a.isRunning)
-                a.start()
+            if (!a.isRunning) a.start()
             return@BarcodeCallback
         }
         avatar = sts[2]
@@ -587,8 +592,7 @@ class ActivityReceiving : AppCompatActivity() {
         while (itr.hasNext()) {
             val mod = itr.next()
             if (mod.address == modalNetwork.address) found = true
-            if (mod.name == modalNetwork.name)
-                itr.remove()
+            if (mod.name == modalNetwork.name) itr.remove()
         }
 
         Utils.ADDRESS = modalNetwork.address
@@ -597,9 +601,7 @@ class ActivityReceiving : AppCompatActivity() {
         if (found) return
         networkList.add(modalNetwork)
         repo.setAllNetwork(networkList)
-        val shot = repo.getShortcut() as MutableList<ModalNetwork>
-        this.createShotCut(modalNetwork, shot)
-        repo.saveShotCuts(shot)
+        this.createShotCut(modalNetwork)
     }
 
 
