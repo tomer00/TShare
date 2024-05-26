@@ -8,6 +8,7 @@ import android.content.Intent
 import android.graphics.PixelFormat
 import android.graphics.Point
 import android.graphics.PointF
+import android.os.Handler
 import android.os.IBinder
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -99,8 +100,16 @@ class WidgetService : Service() {
         imgParams.gravity = Gravity.END
         imgParams.y = 140
 
+        Handler().postDelayed({b.mainCard.visibility = View.GONE},2200)
+
         //region CLICK AND SWAPPING -->>
         b.apply {
+            mainCard.setOnClickListener{
+                val pint = if (isSend) Intent(this@WidgetService, ActivitySending::class.java)
+                else Intent(this@WidgetService, ActivityReceiving::class.java)
+                val p = PendingIntent.getActivity(this@WidgetService, 100, pint, PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE)
+                p.send()
+            }
             imgRot.setOnTouchListener { _: View?, motionEvent: MotionEvent ->
                 if (motionEvent.action == MotionEvent.ACTION_DOWN) {
                     isDown = true

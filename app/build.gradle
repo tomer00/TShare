@@ -5,14 +5,16 @@ plugins {
 
 android {
     namespace 'com.tomer.tomershare'
+    //noinspection GradleDependency
     compileSdk 33
 
     defaultConfig {
         applicationId "com.tomer.tomershare"
         minSdk 26
+        //noinspection OldTargetApi
         targetSdk 33
-        versionCode 4
-        versionName "2.1.2"
+        versionCode 5
+        versionName "2.2.2"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -52,15 +54,15 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }
 
-task copyApk(type :Copy){
+tasks.register('copyApk', Copy) {
     def sourceDest = layout.projectDirectory.dir("release/app-release.apk")
     def destDir = "/home/tom/apks"
     from sourceDest
     into destDir
-    rename "app-release.apk", rootProject.name+".apk"
+    rename "app-release.apk", rootProject.name + ".apk"
 }
 
-tasks.whenTaskAdded { task->
+tasks.configureEach { task->
     if(task.name =="assembleRelease"){
         task.finalizedBy "copyApk"
     }
