@@ -37,6 +37,8 @@ import java.io.File
 import java.io.IOException
 import java.util.Stack
 import kotlin.concurrent.thread
+import androidx.core.view.isGone
+import androidx.core.graphics.drawable.toDrawable
 
 class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClickLis, AdaptFiles.FIleClickLis {
 
@@ -192,7 +194,7 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
 
     override fun onAppClick(position: Int, indic: ImageView, thumb: ImageView) {
         val f: AppModal = adapApp.l[position]
-        if (indic.visibility == View.GONE) {
+        if (indic.isGone) {
             Utils.sendQueue.offer(AppModal(f.name + ".apk", "0", f.file, drDef!!))
             adapApp.l[position].visi = 0
             adapApp.notifyItemChanged(position)
@@ -258,12 +260,12 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
             try {
                 createModals(Utils.allFiles(f))
                 stack.push(f)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 Toast.makeText(this, "Not Allowed", Toast.LENGTH_SHORT).show()
             }
 
         } else {
-            if (indic.visibility == View.GONE) {
+            if (indic.isGone) {
                 Utils.sendQueue.offer(AppModal(f.name, "0", f, drDef!!))
                 changeFile(position, 0)
                 indic.visibility = View.VISIBLE
@@ -290,7 +292,7 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
         if (position == 0) return
         delFile = adapFiles.currentList[position].file
         if (delFile.isDirectory) {
-            if (indic.visibility == View.GONE) {
+            if (indic.isGone) {
                 if (delFile.listFiles().isNullOrEmpty()) {
                     Toast.makeText(this, "\uD83D\uDCC2 Empty Folder...", Toast.LENGTH_SHORT).show()
                     return
@@ -424,7 +426,8 @@ class MainActivity : AppCompatActivity(), AdaptApp.AppClickLis, AdaptGal.GalClic
         b.setView(fb.root)
         val finishD = b.create()
         finishD.window?.attributes?.windowAnimations = R.style.Dialog
-        finishD.window?.setBackgroundDrawable(ColorDrawable(ContextCompat.getColor(this, R.color.color_trans)))
+        finishD.window?.setBackgroundDrawable(
+            ContextCompat.getColor(this, R.color.color_trans).toDrawable())
         fb.dClose.setOnClickListener { finishD.cancel() }
 
         tvDlName = fb.dtvDetails
