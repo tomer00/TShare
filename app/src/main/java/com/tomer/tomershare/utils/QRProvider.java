@@ -1,10 +1,10 @@
-package com.tomer.tomershare.views;
+package com.tomer.tomershare.utils;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Rect;
+import android.graphics.RectF;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
@@ -12,21 +12,45 @@ import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
-import com.tomer.tomershare.utils.CipherUtils;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class QRProvider {
 
-    public static Bitmap getQRBMP(String data,int eyeCol) {
-        boolean[][] mat = getMATRIX(CipherUtils.performString(data));
+    public static Bitmap getQRBMPBlack(String data) {
+        boolean[][] mat = getMATRIX(CipherUtils.performString(data), false);
         int size = mat.length * 20 + 80;
         Bitmap bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
         Canvas g = new Canvas(bmp);
         Paint p = new Paint();
         p.setAntiAlias(true);
-        p.setColor(Color.rgb(254,251,234));
+        p.setColor(Color.rgb(254, 251, 234));
+        p.setStyle(Paint.Style.FILL);
+
+        g.drawRoundRect(0f, 0f, size, size, 32f, 32f, p);
+
+        p.setColor(Color.BLACK);
+
+        int unit = 20, x = 40, y = 40;
+
+        int w = mat.length;
+        for (int i = 0; i < w; i++)
+            for (int j = 0; j < w; j++) {
+                if (mat[i][j])
+                    g.drawRect(x + i * unit, y + j * unit, x + i * unit + unit, y + j * unit + unit, p);
+            }
+        return bmp;
+    }
+
+    public static Bitmap getQRBMP(String data, int eyeCol) {
+        boolean[][] mat = getMATRIX(CipherUtils.performString(data), true);
+        int size = mat.length * 20 + 80;
+        Bitmap bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        Canvas g = new Canvas(bmp);
+        Paint p = new Paint();
+        p.setAntiAlias(true);
+        p.setColor(Color.rgb(254, 251, 234));
         p.setStyle(Paint.Style.FILL);
 
         g.drawRoundRect(0f, 0f, size, size, 32f, 32f, p);
@@ -38,7 +62,7 @@ public class QRProvider {
 
 
         int w = mat.length;
-        Rect rect = new Rect(0, 0, 0, 0);
+        RectF rect = new RectF(0f, 0f, 0f, 0f);
         for (int i = 0; i < w; i++)
             for (int j = 0; j < w; j++)
                 if (mat[i][j]) {
@@ -59,20 +83,20 @@ public class QRProvider {
                         } else {
                             //only upper is true and lower is false  BottomCentre asset
                             rect.set(x + i * unit + 2, y + j * unit + 4, x + i * unit + 18, y + j * unit + 20);
-                            g.drawCircle(rect.exactCenterX(), rect.exactCenterY(), 8, p);
+                            g.drawCircle(rect.centerX(), rect.centerY(), 8, p);
                             g.drawRect(x + i * unit + 2, y + j * unit, x + i * unit + 18, y + j * unit + 12, p);
                         }
                     } else {
                         if (bottom) {
                             //only upper is false but lower is true  TopCentre asset
                             rect.set(x + i * unit + 2, y + j * unit, x + i * unit + 18, y + j * unit + 16);
-                            g.drawCircle(rect.exactCenterX(), rect.exactCenterY(), 8, p);
+                            g.drawCircle(rect.centerX(), rect.centerY(), 8, p);
                             g.drawRect(x + i * unit + 2, y + j * unit + 8, x + i * unit + 18, y + j * unit + 20, p);
 
                         } else {
                             //both are false single asset
                             rect.set(x + i * unit + 2, y + j * unit + 2, x + i * unit + 18, y + j * unit + 18);
-                            g.drawCircle(rect.exactCenterX(), rect.exactCenterY(), 8, p);
+                            g.drawCircle(rect.centerX(), rect.centerY(), 8, p);
                         }
                     }
                 }
@@ -86,24 +110,27 @@ public class QRProvider {
 
         p.setStyle(Paint.Style.STROKE);
         rect.set(x + 10, y + 10, x + 10 + w7, y + 10 + w7);
-        g.drawCircle(rect.exactCenterX(), rect.exactCenterY(), 3 * unit, p);
+        g.drawRoundRect(rect, 26f, 26f, p);
+//        g.drawCircle(rect.centerX(), rect.centerY(), 3 * unit, p);
         p.setStyle(Paint.Style.FILL);
-        g.drawCircle(rect.exactCenterX(), rect.exactCenterY(), (3 * unit) >> 1, p);
+        g.drawCircle(rect.centerX(), rect.centerY(), 1.6f * unit, p);
 
         x = x + (mat.length - 7) * unit;
         p.setStyle(Paint.Style.STROKE);
         rect.set(x + 10, y + 10, x + 10 + w7, y + 10 + w7);
-        g.drawCircle(rect.exactCenterX(), rect.exactCenterY(), 3 * unit, p);
+        g.drawRoundRect(rect, 26f, 26f, p);
+//        g.drawCircle(rect.centerX(), rect.centerY(), 3 * unit, p);
         p.setStyle(Paint.Style.FILL);
-        g.drawCircle(rect.exactCenterX(), rect.exactCenterY(), (3 * unit) >> 1, p);
+        g.drawCircle(rect.centerX(), rect.centerY(), 1.6f * unit, p);
 
         x = 40;
         y = y + (mat.length - 7) * unit;
         p.setStyle(Paint.Style.STROKE);
         rect.set(x + 10, y + 10, x + 10 + w7, y + 10 + w7);
-        g.drawCircle(rect.exactCenterX(), rect.exactCenterY(), 3 * unit, p);
+        g.drawRoundRect(rect, 26f, 26f, p);
+//        g.drawCircle(rect.centerX(), rect.centerY(), 3 * unit, p);
         p.setStyle(Paint.Style.FILL);
-        g.drawCircle(rect.exactCenterX(), rect.exactCenterY(), (3 * unit) >> 1, p);
+        g.drawCircle(rect.centerX(), rect.centerY(), 1.6f * unit, p);
         return bmp;
     }
 
@@ -120,7 +147,7 @@ public class QRProvider {
         return b;
     }
 
-    private static boolean[][] getMATRIX(String data) {
+    private static boolean[][] getMATRIX(String data, boolean removeEyes) {
         int i;
         BitMatrix bmp = genQr(data);
         int bmpDimen = bmp.getWidth();
@@ -157,6 +184,9 @@ public class QRProvider {
             r++;
             c = 0;
         }
+
+        if (!removeEyes)
+            return ret;
 
         //remove eyeTopRight
         for (int k = 0; k < 7; k++)
