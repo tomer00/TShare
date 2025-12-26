@@ -58,52 +58,54 @@
 
         <!--        details showing of current metric   -->
         <LinearLayout
-            android:visibility="gone"
-            android:orientation="horizontal"
             android:id="@+id/layMetrics"
             android:layout_width="match_parent"
-            android:layout_marginHorizontal="20dp"
-            android:gravity="center"
             android:layout_height="wrap_content"
+            android:layout_marginHorizontal="20dp"
+            android:baselineAligned="false"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="@id/progTop"
-            app:layout_constraintTop_toTopOf="@id/progTop"
-            android:baselineAligned="false">
+            app:layout_constraintTop_toTopOf="@id/progTop">
 
             <LinearLayout
-                android:layout_weight="1"
-                android:gravity="center"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center">
+
                 <TextView
                     android:id="@+id/tvSpeed"
                     android:layout_width="wrap_content"
-                    android:textColor="@color/black"
-                    android:textSize="20sp"
+                    android:layout_height="wrap_content"
                     android:alpha=".44"
-                    android:text="-- Mb/s"
-                    android:gravity="center"
                     android:drawablePadding="8dp"
                     android:fontFamily="@font/quantico_bold_italic"
-                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="-- Mb/s"
+                    android:textColor="@color/black"
+                    android:textSize="20sp"
                     app:drawableStartCompat="@drawable/ic_speed" />
             </LinearLayout>
 
             <LinearLayout
-                android:layout_weight="1"
-                android:gravity="center"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center">
+
                 <TextView
                     android:id="@+id/tvTimer"
                     android:layout_width="wrap_content"
-                    android:textColor="@color/black"
-                    android:textSize="20sp"
+                    android:layout_height="wrap_content"
                     android:alpha=".44"
-                    android:text="-- Sec"
-                    android:gravity="center"
                     android:drawablePadding="8dp"
                     android:fontFamily="@font/quantico_bold_italic"
-                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="-- Sec"
+                    android:textColor="@color/black"
+                    android:textSize="20sp"
                     app:drawableStartCompat="@drawable/ic_timer" />
             </LinearLayout>
 
@@ -145,7 +147,8 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layQr"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:elevation="8dp">
 
         <ImageView
             android:id="@+id/imgQR"
