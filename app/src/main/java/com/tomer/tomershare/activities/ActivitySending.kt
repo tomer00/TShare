@@ -1,7 +1,9 @@
 package com.tomer.tomershare.activities
 
-import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Build
@@ -10,19 +12,31 @@ import android.os.CountDownTimer
 import android.os.Environment
 import android.os.SystemClock
 import android.provider.Settings
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.TextPaint
+import android.text.method.LinkMovementMethod
+import android.text.style.ClickableSpan
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.target.CustomTarget
+import com.bumptech.glide.request.transition.Transition
 import com.tomer.tomershare.R
 import com.tomer.tomershare.adap.AdaptMsg
 import com.tomer.tomershare.databinding.ActivitySendingBinding
 import com.tomer.tomershare.modal.AppModal
 import com.tomer.tomershare.modal.TransferModal
 import com.tomer.tomershare.trans.SendHandler
+import com.tomer.tomershare.utils.CipherUtils
 import com.tomer.tomershare.utils.PathUtils.Companion.getFilePath
 import com.tomer.tomershare.utils.PathUtils.Companion.getImagePath
 import com.tomer.tomershare.utils.PathUtils.Companion.getVideoPath
+import com.tomer.tomershare.utils.QRProvider
 import com.tomer.tomershare.utils.Repo
 import com.tomer.tomershare.utils.Utils
 import com.tomer.tomershare.utils.Utils.Companion.bytesFromLong
@@ -30,7 +44,6 @@ import com.tomer.tomershare.utils.Utils.Companion.fileName
 import com.tomer.tomershare.utils.Utils.Companion.longFromBytearray
 import com.tomer.tomershare.utils.Utils.Companion.rotate
 import com.tomer.tomershare.views.EndPosterProvider.Companion.getEndPoster
-import com.tomer.tomershare.views.QRProvider
 import com.tomer.tomershare.widget.WidgetService
 import java.io.File
 import java.net.DatagramSocket
@@ -104,6 +117,8 @@ class ActivitySending : AppCompatActivity() {
 
     private var avatar = "1"
     private var phoneName = "Android"
+
+    private var blackBmp = createBitmap(1, 1)
     //endregion GLOBALS---->>>
 
     @Throws(Exception::class)
@@ -155,8 +170,12 @@ class ActivitySending : AppCompatActivity() {
         //region HANDLE SELECTED URIS--->>
         val action = intent.action
         if (Intent.ACTION_SEND == action) {
-            val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-            else intent.getParcelableExtra(Intent.EXTRA_STREAM)
+            val uri =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) intent.getParcelableExtra(
+                    Intent.EXTRA_STREAM,
+                    Uri::class.java
+                )
+                else intent.getParcelableExtra(Intent.EXTRA_STREAM)
             if (uri != null) {
                 thread {
                     handleFile(uri)
@@ -211,8 +230,12 @@ class ActivitySending : AppCompatActivity() {
         if (transferGoing) {
             val action = intent.action
             if (Intent.ACTION_SEND == action) {
-                val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-                else intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                val uri =
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) intent.getParcelableExtra(
+                        Intent.EXTRA_STREAM,
+                        Uri::class.java
+                    )
+                    else intent.getParcelableExtra(Intent.EXTRA_STREAM)
                 if (uri != null) {
                     thread {
                         handleFile(uri)
@@ -270,13 +293,96 @@ class ActivitySending : AppCompatActivity() {
             val ip = getIp()
             runOnUiThread {
                 val pref = getSharedPreferences("NAME", MODE_PRIVATE)
-                b.tvIpShow.text = if (ip != "NOT") ip else ""
+                b.tvIpShow.text = if (ip != "NOT") ip else {
+                    val msg = "Please Connect To\nWifi or open Hotspot"
+                    val ss = SpannableString(msg)
+
+                    val wifiClick = object : ClickableSpan() {
+                        override fun onClick(widget: View) {
+                            runCatching { startActivity(Intent(Settings.ACTION_WIFI_SETTINGS)) }
+                        }
+
+                        override fun updateDrawState(ds: TextPaint) {
+                            ds.color = "#FFFF1744".toColorInt()
+                            ds.isUnderlineText = true
+                        }
+                    }
+
+                    val hotspotClick = object : ClickableSpan() {
+                        override fun onClick(widget: View) {
+                            runCatching { startActivity(Intent("android.settings.TETHER_SETTINGS")) }
+                                .getOrElse { runCatching { startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS)) } }
+                        }
+
+                        override fun updateDrawState(ds: TextPaint) {
+                            ds.color = "#FFFF1744".toColorInt()
+                            ds.isUnderlineText = true
+                        }
+                    }
+
+                    val wifiStart = msg.indexOf("Wifi")
+                    if (wifiStart != -1) {
+                        ss.setSpan(
+                            wifiClick,
+                            wifiStart,
+                            wifiStart + 4,
+                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                        )
+                    }
+
+                    val hotspotStart = msg.indexOf("Hotspot")
+                    if (hotspotStart != -1) {
+                        ss.setSpan(
+                            hotspotClick,
+                            hotspotStart,
+                            hotspotStart + 7,
+                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                        )
+                    }
+
+                    b.tvIpShow.movementMethod = LinkMovementMethod.getInstance()
+                    b.tvIpShow.highlightColor = Color.TRANSPARENT
+                    ss
+                }
                 b.imgQR.setImageBitmap(
                     QRProvider.getQRBMP(
                         "${pref.getString("name", "Share")}::$ip::${pref.getString("icon", "1")}",
                         ContextCompat.getColor(this, R.color.co_main)
                     )
                 )
+                val str = CipherUtils.performString(
+                    "${
+                        pref.getString("name", "Share")
+                    }::$ip::${pref.getString("icon", "1")}"
+                )
+                Glide.with(this)
+                    .asBitmap()
+                    .load(
+                        "https://qr.devhimu.in?type=6&size=800&data=${str}"
+                    ).skipMemoryCache(true)
+                    .into(
+                        object : CustomTarget<Bitmap>() {
+                            override fun onResourceReady(
+                                resource: Bitmap,
+                                transition: Transition<in Bitmap>?
+                            ) {
+                                if (blackBmp.width == 1)
+                                    b.imgQR.setImageBitmap(resource)
+                            }
+
+                            override fun onLoadCleared(placeholder: Drawable?) {
+                            }
+
+                        })
+                b.imgQR.setOnClickListener {
+                    if (blackBmp.width != 1) return@setOnClickListener
+                    blackBmp = QRProvider.getQRBMPBlack(
+                        "${
+                            pref.getString("name", "Share")
+                        }::$ip::${pref.getString("icon", "1")}"
+                    )
+                    b.imgQR.setImageBitmap(blackBmp)
+                }
                 if (ip == "NOT")
                     b.root.postDelayed(this::setNewQr, 2000)
             }
@@ -296,7 +402,12 @@ class ActivitySending : AppCompatActivity() {
             b.imgAvatarReceiver.apply {
                 clearAnimation()
                 rotation = 0f
-                setImageDrawable(ContextCompat.getDrawable(this@ActivitySending, Repo.getMid(avatar)))
+                setImageDrawable(
+                    ContextCompat.getDrawable(
+                        this@ActivitySending,
+                        Repo.getMid(avatar)
+                    )
+                )
             }
             "Sending to $phoneName".also { b.tvSendingName.text = it }
 
@@ -323,7 +434,8 @@ class ActivitySending : AppCompatActivity() {
                 val timeTaken = SystemClock.elapsedRealtime() - time
                 val volume = Utils.humanReadableSize(finalTotalBytes)
                 try {
-                    val speed = String.format("%1$.2f", (finalTotalBytes / 1048576f) / (timeTaken / 1000f))
+                    val speed =
+                        String.format("%1$.2f", (finalTotalBytes / 1048576f) / (timeTaken / 1000f))
                     finishView.setImageBitmap(this@ActivitySending.getEndPoster(speed, volume))
                 } catch (_: Exception) {
                     finishView.setImageBitmap(this@ActivitySending.getEndPoster("0.00", volume))
@@ -332,8 +444,15 @@ class ActivitySending : AppCompatActivity() {
 
                 val tme = (timeTaken / 1000).toInt()
                 if (tme < 60) "Sent in just $tme seconds...".also { tvSendingName.text = it }
-                else "Sent in just ${tme / 60} min and ${tme % 60} seconds...".also { tvSendingName.text = it }
-                imgAvatarReceiver.setImageDrawable(ContextCompat.getDrawable(this@ActivitySending, R.drawable.ic_clock))
+                else "Sent in just ${tme / 60} min and ${tme % 60} seconds...".also {
+                    tvSendingName.text = it
+                }
+                imgAvatarReceiver.setImageDrawable(
+                    ContextCompat.getDrawable(
+                        this@ActivitySending,
+                        R.drawable.ic_clock
+                    )
+                )
                 val li = mutableListOf<TransferModal>()
                 adaptSend.currentList.forEach { mod ->
                     li.add(TransferModal(mod.fileName))
@@ -344,10 +463,10 @@ class ActivitySending : AppCompatActivity() {
     }
 
 
-    //endregion ACTIVITY LIFECYCLES---->>>
+//endregion ACTIVITY LIFECYCLES---->>>
 
 
-    //region SENDING FILES----->>>
+//region SENDING FILES----->>>
 
     @Throws(Exception::class)
     private fun readPhoneName() {
@@ -369,18 +488,6 @@ class ActivitySending : AppCompatActivity() {
             soc!!.close()
             return
         }
-
-//        val folder = File("")
-//
-//        val int = Intent(Intent.ACTION_VIEW).apply {
-//            setDataAndType(folder.toUri(),"resource/folder")
-//            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-//        }
-//        try {
-//            startActivity(int)
-//        }catch (e:Exception){
-//            e.printStackTrace()
-//        }
     }
 
     private fun reListen() {
@@ -504,7 +611,7 @@ class ActivitySending : AppCompatActivity() {
         } catch (_: Exception) {
         }
     }
-    //endregion SENDING FILES----->>>
+//endregion SENDING FILES----->>>
 
 
     //region HELPER FUNCTIONS---->>>
@@ -532,19 +639,19 @@ class ActivitySending : AppCompatActivity() {
     private fun reqOverLay() {
         val intent = Intent(
             Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-            Uri.parse("package:${packageName}")
+            "package:${packageName}".toUri()
         )
         startActivityForResult(intent, 101)
     }
 
     private fun getIp(): String {
         var str = "NOT"
-        val man = getSystemService(Context.WIFI_SERVICE) as WifiManager
+        val man = getSystemService(WIFI_SERVICE) as WifiManager
         if (man.isWifiEnabled) {
             try {
                 val soc = DatagramSocket()
                 soc.connect(InetAddress.getByName("8.8.8.8"), 12345)
-                str = soc.localAddress.hostAddress?.toString() ?: "NOT"
+                str = soc.localAddress.hostAddress ?: "NOT"
                 soc.close()
             } catch (_: Exception) {
             }
@@ -559,8 +666,8 @@ class ActivitySending : AppCompatActivity() {
                 while (into.hasMoreElements()) {
                     val add = into.nextElement()
                     if (!add.isLoopbackAddress && add is Inet4Address) {
-                        str = add.hostAddress?.toString() ?: "NOT"
-                        if (!str.startsWith("192.168.")) str = "NOT"
+                        str = add.hostAddress ?: "NOT"
+                        if (!str.startsWith("192.168.") && !str.startsWith("10.")) str = "NOT"
                         return str
                     }
                 }
@@ -570,10 +677,10 @@ class ActivitySending : AppCompatActivity() {
         return str
     }
 
-    //endregion HELPER FUNCTIONS---->>>
+//endregion HELPER FUNCTIONS---->>>
 
 
-    //region File URI HANDLERS---->>
+//region File URI HANDLERS---->>
 
 
     private fun handleFile(uri: Uri) {
@@ -582,26 +689,54 @@ class ActivitySending : AppCompatActivity() {
         if (uri.path!!.contains("/external_files/")) {
             val sts: Array<String> = Pattern.compile("/external_files/").split(uri.path!!)
             val f = File(Environment.getExternalStorageDirectory(), sts[1])
-            Utils.sendQueue.offer(AppModal(f.name, "0", f, ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+            Utils.sendQueue.offer(
+                AppModal(
+                    f.name,
+                    "0",
+                    f,
+                    ContextCompat.getDrawable(this, R.drawable.appfi)!!
+                )
+            )
             return
         }
 
         when (intent.type.toString()) {
             "video/*" -> {
                 val path = uri.getVideoPath(applicationContext)
-                if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+                if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(
+                    AppModal(
+                        path.second,
+                        "0",
+                        File(path.first),
+                        ContextCompat.getDrawable(this, R.drawable.appfi)!!
+                    )
+                )
                 else handelTempFiles(uri)
             }
 
             "image/*" -> {
                 val path = uri.getImagePath(applicationContext)
-                if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+                if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(
+                    AppModal(
+                        path.second,
+                        "0",
+                        File(path.first),
+                        ContextCompat.getDrawable(this, R.drawable.appfi)!!
+                    )
+                )
                 else handelTempFiles(uri)
             }
 
             "application/*" -> {
                 val path = uri.getFilePath(applicationContext)
-                if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+                if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(
+                    AppModal(
+                        path.second,
+                        "0",
+                        File(path.first),
+                        ContextCompat.getDrawable(this, R.drawable.appfi)!!
+                    )
+                )
                 else handelTempFiles(uri)
             }
 
@@ -611,13 +746,34 @@ class ActivitySending : AppCompatActivity() {
 
             else -> {
                 var path = uri.getFilePath(applicationContext)
-                if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+                if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(
+                    AppModal(
+                        path.second,
+                        "0",
+                        File(path.first),
+                        ContextCompat.getDrawable(this, R.drawable.appfi)!!
+                    )
+                )
                 else {
                     path = uri.getImagePath(applicationContext)
-                    if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+                    if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(
+                        AppModal(
+                            path.second,
+                            "0",
+                            File(path.first),
+                            ContextCompat.getDrawable(this, R.drawable.appfi)!!
+                        )
+                    )
                     else {
                         path = uri.getVideoPath(applicationContext)
-                        if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(AppModal(path.second, "0", File(path.first), ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+                        if (path.first != "null" && File(path.first).canRead()) Utils.sendQueue.offer(
+                            AppModal(
+                                path.second,
+                                "0",
+                                File(path.first),
+                                ContextCompat.getDrawable(this, R.drawable.appfi)!!
+                            )
+                        )
                         else {
                             handelTempFiles(uri)
                         }
@@ -641,12 +797,19 @@ class ActivitySending : AppCompatActivity() {
             ins.use { ins1 ->
                 ins1!!.copyTo(f.outputStream())
             }
-            if (f.length() > 0) Utils.sendQueue.offer(AppModal(name, "0", f, ContextCompat.getDrawable(this, R.drawable.appfi)!!))
+            if (f.length() > 0) Utils.sendQueue.offer(
+                AppModal(
+                    name,
+                    "0",
+                    f,
+                    ContextCompat.getDrawable(this, R.drawable.appfi)!!
+                )
+            )
         } catch (_: Exception) {
         }
 
     }
 
-    //endregion File URI HANDLERS---->>
+//endregion File URI HANDLERS---->>
 
 }
