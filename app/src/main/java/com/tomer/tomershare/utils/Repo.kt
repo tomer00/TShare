@@ -21,11 +21,20 @@ class Repo(private val context: Context) {
         val pkg: PackageManager = context.packageManager
         val apps = pkg.getInstalledPackages(0)
         for (app in apps) {
-            if (app.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM == 0) {
-                val d: Drawable? = getIcon(pkg, app.packageName)
-                if (d != null) {
-                    val f = File(app.applicationInfo.sourceDir)
-                    l.add(AppModal(pkg.getApplicationLabel(app.applicationInfo).toString(), Utils.humanReadableSize(f.length()), f, d))
+            runCatching {
+                if (app.applicationInfo!!.flags and ApplicationInfo.FLAG_SYSTEM == 0) {
+                    val d: Drawable? = getIcon(pkg, app.packageName)
+                    if (d != null) {
+                        val f = File(app.applicationInfo?.sourceDir ?: "")
+                        l.add(
+                            AppModal(
+                                pkg.getApplicationLabel(app.applicationInfo!!).toString(),
+                                Utils.humanReadableSize(f.length()),
+                                f,
+                                d
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -42,16 +51,24 @@ class Repo(private val context: Context) {
             MediaStore.Files.FileColumns.DATE_ADDED,
             MediaStore.Files.FileColumns.MEDIA_TYPE
         )
-        val selection = (MediaStore.Files.FileColumns.MEDIA_TYPE + "=" + MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE
-                + " OR " +
-                MediaStore.Files.FileColumns.MEDIA_TYPE + "=" + MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO)
-        cursor = context.contentResolver.query(uri, proj, selection, null, MediaStore.Files.FileColumns.DATE_ADDED + " DESC")!!
+        val selection =
+            (MediaStore.Files.FileColumns.MEDIA_TYPE + "=" + MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE
+                    + " OR " +
+                    MediaStore.Files.FileColumns.MEDIA_TYPE + "=" + MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO)
+        cursor = context.contentResolver.query(
+            uri,
+            proj,
+            selection,
+            null,
+            MediaStore.Files.FileColumns.DATE_ADDED + " DESC"
+        )!!
         val cIndexData: Int = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA)
         val cIndexType: Int = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
         val listGal = mutableListOf<GalModal>()
         while (cursor.moveToNext()) {
             val f = File(cursor.getString(cIndexData))
-            val isVid = cursor.getString(cIndexType) == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString()
+            val isVid =
+                cursor.getString(cIndexType) == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString()
             listGal.add(GalModal(f, isVid))
         }
         cursor.close()
@@ -62,7 +79,7 @@ class Repo(private val context: Context) {
     private fun getIcon(pm: PackageManager, pkg: String): Drawable? {
         return try {
             pm.getApplicationIcon(pkg)
-        } catch (e: NameNotFoundException) {
+        } catch (_: NameNotFoundException) {
             null
         }
     }
