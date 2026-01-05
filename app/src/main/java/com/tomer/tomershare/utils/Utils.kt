@@ -24,7 +24,10 @@ class Utils {
         const val BUFF_SIZE = 1048576
         const val OUT_BUFF = 33554432
         const val SERVER_PORT = 8012
+        const val HAND_SHAKE_PORT = 20486
         var ADDRESS = "192.168.43.1"
+        var myName = "Himu"
+        var myIcon = "Himu"
 
         val sendQueue: Queue<AppModal> = LinkedList()
 

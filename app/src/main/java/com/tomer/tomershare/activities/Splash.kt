@@ -1,11 +1,11 @@
 package com.tomer.tomershare.activities
 
-import android.Manifest.permission.*
+import android.Manifest.permission.CAMERA
+import android.Manifest.permission.READ_EXTERNAL_STORAGE
+import android.Manifest.permission.WRITE_EXTERNAL_STORAGE
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.AnimationDrawable
-import android.graphics.drawable.ColorDrawable
-import android.net.Uri
 import android.os.Build
 import android.os.Build.VERSION.SDK_INT
 import android.os.Bundle
@@ -19,11 +19,14 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import com.tomer.tomershare.R
 import com.tomer.tomershare.databinding.ActivitySplashBinding
 import com.tomer.tomershare.databinding.DiaNameBinding
+import com.tomer.tomershare.utils.Utils
 import com.tomer.tomershare.utils.Utils.Companion.haptic
 import com.tomer.tomershare.utils.Utils.Companion.rotate
+import androidx.core.graphics.drawable.toDrawable
 
 
 @Suppress("DEPRECATION")
@@ -73,6 +76,8 @@ class Splash : AppCompatActivity() {
         val pref = getSharedPreferences("NAME", MODE_PRIVATE)
         val name = pref.getString("name", "__")
         val icon = pref.getString("icon", "-1")
+        Utils.myName = name ?: "HIMU"
+        Utils.myIcon = icon ?: "1"
         if (name == "__" || icon == "-1")
             networkDia.show()
 
@@ -81,7 +86,8 @@ class Splash : AppCompatActivity() {
                 try {
                     val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
                     intent.addCategory("android.intent.category.DEFAULT")
-                    intent.data = Uri.parse(String.format("package:%s", applicationContext.packageName))
+                    intent.data =
+                        String.format("package:%s", applicationContext.packageName).toUri()
                     startActivityForResult(intent, 2296)
                 } catch (e: Exception) {
                     val intent = Intent().apply {
@@ -91,7 +97,11 @@ class Splash : AppCompatActivity() {
                 }
             } else {
                 //below android 11
-                ActivityCompat.requestPermissions(this, arrayOf(WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, CAMERA), 100)
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, CAMERA),
+                    100
+                )
             }
         }
     }
@@ -103,7 +113,12 @@ class Splash : AppCompatActivity() {
         bul.setView(fb.root)
         val finishD = bul.create()
         finishD.window?.attributes?.windowAnimations = R.style.Dialog
-        finishD.window?.setBackgroundDrawable(ColorDrawable(ContextCompat.getColor(this, R.color.color_trans)))
+        finishD.window?.setBackgroundDrawable(
+            ContextCompat.getColor(
+                this,
+                R.color.color_trans
+            ).toDrawable()
+        )
         fb.etAdd.setText(Build.MODEL.toString())
 
         fb.btSave.setOnClickListener {
@@ -111,7 +126,8 @@ class Splash : AppCompatActivity() {
                 fb.etAdd.error = "Your Name"
                 return@setOnClickListener
             }
-            getSharedPreferences("NAME", MODE_PRIVATE).edit().putString("name", fb.etAdd.text.toString()).putString("icon", icon).apply()
+            getSharedPreferences("NAME", MODE_PRIVATE).edit()
+                .putString("name", fb.etAdd.text.toString()).putString("icon", icon).apply()
             finishD.cancel()
         }
         finishD.setCancelable(false)
