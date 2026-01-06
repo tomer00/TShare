@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.AnimationDrawable
-import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Bundle
@@ -22,6 +21,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toDrawable
 import com.journeyapps.barcodescanner.BarcodeCallback
 import com.journeyapps.barcodescanner.CompoundBarcodeView
 import com.tomer.tomershare.R
@@ -29,6 +29,7 @@ import com.tomer.tomershare.adap.AdaptMsg
 import com.tomer.tomershare.databinding.ActivityRecivingBinding
 import com.tomer.tomershare.databinding.BarcodeDiaBinding
 import com.tomer.tomershare.databinding.RowNetBinding
+import com.tomer.tomershare.hankshake.HandShakeInitiator
 import com.tomer.tomershare.modal.ModalNetwork
 import com.tomer.tomershare.modal.TransferModal
 import com.tomer.tomershare.trans.RecHandler
@@ -43,9 +44,14 @@ import com.tomer.tomershare.utils.Utils.Companion.rotate
 import com.tomer.tomershare.views.EndPosterProvider.Companion.getEndPoster
 import com.tomer.tomershare.widget.WidgetService
 import java.io.File
+import java.net.DatagramSocket
+import java.net.Inet4Address
+import java.net.InetAddress
 import java.net.InetSocketAddress
+import java.net.NetworkInterface
 import java.net.Socket
 import java.nio.charset.StandardCharsets
+import java.util.Enumeration
 import java.util.regex.Pattern
 import kotlin.concurrent.thread
 
@@ -106,6 +112,9 @@ class ActivityReceiving : AppCompatActivity() {
     private var phoneName = "Android"
 
     private val parentFolder = File(Environment.getExternalStorageDirectory(), "tshare")
+    private val handShakeInitiator = HandShakeInitiator { ip, name, icon ->
+        saveIpAndOpenConnection(ip, name, icon)
+    }
 
 
     @Throws(Exception::class)
@@ -168,7 +177,6 @@ class ActivityReceiving : AppCompatActivity() {
 
     //region ACTIVITY LIFECYCLES---->>>
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(b.root)
@@ -213,9 +221,14 @@ class ActivityReceiving : AppCompatActivity() {
             if (!checkPermission()) {
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), 100)
             } else {
-                qrDia.show()
-                barcodeView.resume()
-                barcodeView.decodeSingle(callback)
+                thread { handShakeInitiator.initFindingIp(getIp()) }
+                b.root.postDelayed({
+                    if (transferGoing.not()) {
+                        qrDia.show()
+                        barcodeView.resume()
+                        barcodeView.decodeSingle(callback)
+                    }
+                }, 1000)
             }
         }
         "Connecting with $phoneName...".also { b.tvSendingName.text = it }
@@ -270,10 +283,23 @@ class ActivityReceiving : AppCompatActivity() {
 
                     val volume = Utils.humanReadableSize(finalTotalBytes)
                     try {
-                        val speed = String.format("%1$.2f", (finalTotalBytes / 1048576f) / (timeTaken / 1000f))
-                        finishView.setImageBitmap(this@ActivityReceiving.getEndPoster(speed, volume))
+                        val speed = String.format(
+                            "%1$.2f",
+                            (finalTotalBytes / 1048576f) / (timeTaken / 1000f)
+                        )
+                        finishView.setImageBitmap(
+                            this@ActivityReceiving.getEndPoster(
+                                speed,
+                                volume
+                            )
+                        )
                     } catch (_: Exception) {
-                        finishView.setImageBitmap(this@ActivityReceiving.getEndPoster("0.00", volume))
+                        finishView.setImageBitmap(
+                            this@ActivityReceiving.getEndPoster(
+                                "0.00",
+                                volume
+                            )
+                        )
                     }
                     finishView.visibility = View.VISIBLE
 
@@ -281,7 +307,12 @@ class ActivityReceiving : AppCompatActivity() {
                     val str = if (tme < 60) "Received in just $tme seconds..."
                     else "Received in just ${tme / 60} min and ${tme % 60} seconds..."
                     tvSendingName.text = str
-                    imgAvatarReceiver.setImageDrawable(ContextCompat.getDrawable(this@ActivityReceiving, R.drawable.ic_clock))
+                    imgAvatarReceiver.setImageDrawable(
+                        ContextCompat.getDrawable(
+                            this@ActivityReceiving,
+                            R.drawable.ic_clock
+                        )
+                    )
                     val li = mutableListOf<TransferModal>()
                     adaptSend.currentList.forEach { mod ->
                         li.add(TransferModal(mod.fileName))
@@ -299,7 +330,12 @@ class ActivityReceiving : AppCompatActivity() {
             b.imgAvatarReceiver.apply {
                 clearAnimation()
                 rotation = 0f
-                setImageDrawable(ContextCompat.getDrawable(this@ActivityReceiving, Repo.getMid(avatar)))
+                setImageDrawable(
+                    ContextCompat.getDrawable(
+                        this@ActivityReceiving,
+                        Repo.getMid(avatar)
+                    )
+                )
             }
             "Receiving from $phoneName".also { b.tvSendingName.text = it }
             b.btShowQR.visibility = View.GONE
@@ -329,21 +365,6 @@ class ActivityReceiving : AppCompatActivity() {
             soc!!.close()
             return
         }
-
-//        Log.d("TAG--", "onClickRvItem: $pos")
-//
-//        val folder = File(parentFolder,"")
-//
-//        val int = Intent(Intent.ACTION_VIEW).apply {
-//            setDataAndType(FileProvider.getUriForFile(this@ActivityReceiving, "com.tomer.tomershare.provider", folder),"*/*")
-//            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-//        }
-//        try {
-//            startActivity(int)
-//        }catch (e:Exception){
-//            e.printStackTrace()
-//            Log.e("TAG--", "onClickRvItem: ",e)
-//        }
     }
 
 
@@ -361,8 +382,9 @@ class ActivityReceiving : AppCompatActivity() {
                     soc!!.connect(InetSocketAddress(Utils.ADDRESS, Utils.SERVER_PORT))
                     onOpen()
                 } catch (_: Exception) {
-                    runOnUiThread {
-                        if (!stopped && !transferGoing) {
+                    if (!stopped && !transferGoing) {
+                        handShakeInitiator.initFindingIp(getIp())
+                        runOnUiThread {
                             "Failed to connect...".also { b.tvSendingName.text = it }
                             b.btShowQR.visibility = View.VISIBLE
                             b.btShowQR.animate().apply {
@@ -385,7 +407,14 @@ class ActivityReceiving : AppCompatActivity() {
             thread {
                 val pref = getSharedPreferences("NAME", MODE_PRIVATE)
                 try {
-                    soc!!.sendString("${pref.getString("name", "TShare")}${pref.getString("icon", "1")}")
+                    soc!!.sendString(
+                        "${pref.getString("name", "TShare")}${
+                            pref.getString(
+                                "icon",
+                                "1"
+                            )
+                        }"
+                    )
                 } catch (_: Exception) {
                 }
                 time = SystemClock.elapsedRealtime()
@@ -539,6 +568,40 @@ class ActivityReceiving : AppCompatActivity() {
         }
     }
 
+    private fun getIp(): String {
+        var str = "NOT"
+        val man = getSystemService(WIFI_SERVICE) as WifiManager
+        if (man.isWifiEnabled) {
+            try {
+                val soc = DatagramSocket()
+                soc.connect(InetAddress.getByName("8.8.8.8"), 12345)
+                str = soc.localAddress.hostAddress ?: "NOT"
+                soc.close()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            if (str == "::") str = "NOT"
+            return str
+        }
+
+        try {
+            val info: Enumeration<NetworkInterface> = NetworkInterface.getNetworkInterfaces()
+            while (info.hasMoreElements()) {
+                val into: Enumeration<InetAddress> = info.nextElement().inetAddresses
+                while (into.hasMoreElements()) {
+                    val add = into.nextElement()
+                    if (!add.isLoopbackAddress && add is Inet4Address) {
+                        str = add.hostAddress ?: "NOT"
+                        if (!str.startsWith("192.168.") && !str.startsWith("10.")) str = "NOT"
+                        return str
+                    }
+                }
+            }
+        } catch (_: Exception) {
+        }
+        return str
+    }
+
     //endregion RECEIVING FILES---->>
 
     //region BARCODE CALLBACK
@@ -549,7 +612,9 @@ class ActivityReceiving : AppCompatActivity() {
         b.setView(fb.root)
         val qrd = b.create()
         qrd.window?.attributes?.windowAnimations = R.style.Dialog
-        qrd.window?.setBackgroundDrawable(ColorDrawable(ContextCompat.getColor(this, R.color.color_trans)))
+        qrd.window?.setBackgroundDrawable(
+            ContextCompat.getColor(this, R.color.color_trans).toDrawable()
+        )
         fb.btCross.setOnClickListener {
             qrd.cancel()
         }

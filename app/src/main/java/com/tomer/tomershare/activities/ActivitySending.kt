@@ -33,6 +33,7 @@ import com.tomer.tomershare.modal.AppModal
 import com.tomer.tomershare.modal.TransferModal
 import com.tomer.tomershare.trans.SendHandler
 import com.tomer.tomershare.utils.CipherUtils
+import com.tomer.tomershare.hankshake.HandShakeServer
 import com.tomer.tomershare.utils.PathUtils.Companion.getFilePath
 import com.tomer.tomershare.utils.PathUtils.Companion.getImagePath
 import com.tomer.tomershare.utils.PathUtils.Companion.getVideoPath
@@ -113,6 +114,7 @@ class ActivitySending : AppCompatActivity() {
 
     @Volatile
     private var transferGoing = false
+    private val handShakeServer = HandShakeServer()
 
 
     private var avatar = "1"
@@ -207,7 +209,6 @@ class ActivitySending : AppCompatActivity() {
 
         //endregion HANDLE SELECTED URIS--->>
 
-
         setNewQr()
 
         thread {
@@ -287,105 +288,101 @@ class ActivitySending : AppCompatActivity() {
         }
     }
 
+    private var prevIp = "NOT"
     private fun setNewQr() {
-        if (stopped) return
+        if (stopped || transferGoing) return
         thread {
             val ip = getIp()
-            runOnUiThread {
-                val pref = getSharedPreferences("NAME", MODE_PRIVATE)
-                b.tvIpShow.text = if (ip != "NOT") ip else {
-                    val msg = "Please Connect To\nWifi or open Hotspot"
-                    val ss = SpannableString(msg)
+            if (ip != prevIp)
+                runOnUiThread {
+                    prevIp = ip
+                    b.tvIpShow.text = if (ip != "NOT") ip else {
+                        val msg = "Please Connect To\nWifi or open Hotspot"
+                        val ss = SpannableString(msg)
 
-                    val wifiClick = object : ClickableSpan() {
-                        override fun onClick(widget: View) {
-                            runCatching { startActivity(Intent(Settings.ACTION_WIFI_SETTINGS)) }
-                        }
-
-                        override fun updateDrawState(ds: TextPaint) {
-                            ds.color = "#FFFF1744".toColorInt()
-                            ds.isUnderlineText = true
-                        }
-                    }
-
-                    val hotspotClick = object : ClickableSpan() {
-                        override fun onClick(widget: View) {
-                            runCatching { startActivity(Intent("android.settings.TETHER_SETTINGS")) }
-                                .getOrElse { runCatching { startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS)) } }
-                        }
-
-                        override fun updateDrawState(ds: TextPaint) {
-                            ds.color = "#FFFF1744".toColorInt()
-                            ds.isUnderlineText = true
-                        }
-                    }
-
-                    val wifiStart = msg.indexOf("Wifi")
-                    if (wifiStart != -1) {
-                        ss.setSpan(
-                            wifiClick,
-                            wifiStart,
-                            wifiStart + 4,
-                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                        )
-                    }
-
-                    val hotspotStart = msg.indexOf("Hotspot")
-                    if (hotspotStart != -1) {
-                        ss.setSpan(
-                            hotspotClick,
-                            hotspotStart,
-                            hotspotStart + 7,
-                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                        )
-                    }
-
-                    b.tvIpShow.movementMethod = LinkMovementMethod.getInstance()
-                    b.tvIpShow.highlightColor = Color.TRANSPARENT
-                    ss
-                }
-                b.imgQR.setImageBitmap(
-                    QRProvider.getQRBMP(
-                        "${pref.getString("name", "Share")}::$ip::${pref.getString("icon", "1")}",
-                        ContextCompat.getColor(this, R.color.co_main)
-                    )
-                )
-                val str = CipherUtils.performString(
-                    "${
-                        pref.getString("name", "Share")
-                    }::$ip::${pref.getString("icon", "1")}"
-                )
-                Glide.with(this)
-                    .asBitmap()
-                    .load(
-                        "https://qr.devhimu.in?type=6&size=800&data=${str}"
-                    ).skipMemoryCache(true)
-                    .into(
-                        object : CustomTarget<Bitmap>() {
-                            override fun onResourceReady(
-                                resource: Bitmap,
-                                transition: Transition<in Bitmap>?
-                            ) {
-                                if (blackBmp.width == 1)
-                                    b.imgQR.setImageBitmap(resource)
+                        val wifiClick = object : ClickableSpan() {
+                            override fun onClick(widget: View) {
+                                runCatching { startActivity(Intent(Settings.ACTION_WIFI_SETTINGS)) }
                             }
 
-                            override fun onLoadCleared(placeholder: Drawable?) {
+                            override fun updateDrawState(ds: TextPaint) {
+                                ds.color = "#FFFF1744".toColorInt()
+                                ds.isUnderlineText = true
+                            }
+                        }
+
+                        val hotspotClick = object : ClickableSpan() {
+                            override fun onClick(widget: View) {
+                                runCatching { startActivity(Intent("android.settings.TETHER_SETTINGS")) }
+                                    .getOrElse { runCatching { startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS)) } }
                             }
 
-                        })
-                b.imgQR.setOnClickListener {
-                    if (blackBmp.width != 1) return@setOnClickListener
-                    blackBmp = QRProvider.getQRBMPBlack(
-                        "${
-                            pref.getString("name", "Share")
-                        }::$ip::${pref.getString("icon", "1")}"
+                            override fun updateDrawState(ds: TextPaint) {
+                                ds.color = "#FFFF1744".toColorInt()
+                                ds.isUnderlineText = true
+                            }
+                        }
+
+                        val wifiStart = msg.indexOf("Wifi")
+                        if (wifiStart != -1) {
+                            ss.setSpan(
+                                wifiClick,
+                                wifiStart,
+                                wifiStart + 4,
+                                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                            )
+                        }
+
+                        val hotspotStart = msg.indexOf("Hotspot")
+                        if (hotspotStart != -1) {
+                            ss.setSpan(
+                                hotspotClick,
+                                hotspotStart,
+                                hotspotStart + 7,
+                                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                            )
+                        }
+
+                        b.tvIpShow.movementMethod = LinkMovementMethod.getInstance()
+                        b.tvIpShow.highlightColor = Color.TRANSPARENT
+                        ss
+                    }
+                    b.imgQR.setImageBitmap(
+                        QRProvider.getQRBMP(
+                            "${Utils.myName}::$ip::${Utils.myIcon}",
+                            ContextCompat.getColor(this, R.color.co_main)
+                        )
                     )
-                    b.imgQR.setImageBitmap(blackBmp)
-                }
-                if (ip == "NOT")
+                    val str = CipherUtils.performString(
+                        "${Utils.myName}::$ip::${Utils.myIcon}"
+                    )
+                    Glide.with(this)
+                        .asBitmap()
+                        .load("https://qr.devhimu.in?type=6&size=800&data=${str}")
+                        .skipMemoryCache(true)
+                        .into(
+                            object : CustomTarget<Bitmap>() {
+                                override fun onResourceReady(
+                                    resource: Bitmap,
+                                    transition: Transition<in Bitmap>?
+                                ) {
+                                    if (blackBmp.width == 1)
+                                        b.imgQR.setImageBitmap(resource)
+                                }
+
+                                override fun onLoadCleared(placeholder: Drawable?) {
+                                }
+
+                            })
+                    b.imgQR.setOnClickListener {
+                        if (blackBmp.width != 1) return@setOnClickListener
+                        blackBmp = QRProvider.getQRBMPBlack(
+                            "${Utils.myName}::$ip::${Utils.myIcon}"
+                        )
+                        b.imgQR.setImageBitmap(blackBmp)
+                    }
                     b.root.postDelayed(this::setNewQr, 2000)
-            }
+                }
         }
     }
 
@@ -410,7 +407,6 @@ class ActivitySending : AppCompatActivity() {
                 )
             }
             "Sending to $phoneName".also { b.tvSendingName.text = it }
-
             b.layMetrics.visibility = View.VISIBLE
         }
         isMetricThread = true
@@ -525,6 +521,7 @@ class ActivitySending : AppCompatActivity() {
                     readPhoneName()
                     intiUI()
                     sendData()
+                    handShakeServer.stop()
                     canSend = false
                     break
                 } else SystemClock.sleep(20)
